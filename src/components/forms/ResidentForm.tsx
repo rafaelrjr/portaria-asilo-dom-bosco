@@ -18,6 +18,7 @@ const residentSchema = z.object({
   quarto: z.string().min(1, 'Quarto é obrigatório'),
   observacoes: z.string().optional(),
   ativo: z.boolean(),
+  autorizadoSaidaTemporaria: z.boolean(),
 });
 
 type ResidentFormData = z.infer<typeof residentSchema>;
@@ -42,10 +43,12 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
     resolver: zodResolver(residentSchema),
     defaultValues: resident || {
       ativo: true,
+      autorizadoSaidaTemporaria: false,
     },
   });
 
   const ativo = watch('ativo');
+  const autorizadoSaida = watch('autorizadoSaidaTemporaria');
 
   function onSubmit(data: ResidentFormData) {
     const newResident: Resident = {
@@ -54,6 +57,7 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
       quarto: data.quarto,
       observacoes: data.observacoes,
       ativo: data.ativo,
+      autorizadoSaidaTemporaria: data.autorizadoSaidaTemporaria,
       createdAt: resident?.createdAt || new Date().toISOString(),
     };
 
@@ -63,7 +67,7 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
     if (onSuccess) {
       onSuccess(newResident);
     } else {
-      reset({ ativo: true });
+      reset({ ativo: true, autorizadoSaidaTemporaria: false });
     }
   }
 
@@ -118,6 +122,23 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
                   {ativo ? 'Ativo' : 'Inativo'}
                 </span>
               </div>
+            </div>
+
+            {/* Saída Temporária */}
+            <div className="space-y-2 md:col-span-2">
+              <Label>Autorização para Saída Temporária</Label>
+              <div className="flex items-center gap-3 pt-2">
+                <Switch
+                  checked={autorizadoSaida}
+                  onCheckedChange={(checked) => setValue('autorizadoSaidaTemporaria', checked)}
+                />
+                <span className={autorizadoSaida ? 'text-success' : 'text-muted-foreground'}>
+                  {autorizadoSaida ? 'Autorizado' : 'Não autorizado'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Permite registrar saídas temporárias para este idoso
+              </p>
             </div>
 
             {/* Observações */}
