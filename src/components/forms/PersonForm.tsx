@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Person, VisitorType } from '@/types';
+import { Person, VisitorType, DayOfWeek, DAYS_OF_WEEK } from '@/types';
 import { savePerson, getResidents } from '@/lib/storage';
 import { formatCPF, formatPhone, formatRG, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { UserPlus, Save, Camera, Trash2 } from 'lucide-react';
+import { UserPlus, Save, Camera, Trash2, Upload } from 'lucide-react';
 import { WebcamCapture } from '@/components/camera/WebcamCapture';
 
 const personSchema = z.object({
@@ -48,6 +49,8 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   const [residents, setResidents] = useState(getResidents());
   const [showCamera, setShowCamera] = useState(false);
   const [foto, setFoto] = useState<string | undefined>(person?.foto);
+  const [diasPermitidos, setDiasPermitidos] = useState<DayOfWeek[]>(person?.diasPermitidos || []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = !!person;
 
   const {
@@ -90,8 +93,28 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
     toast.success('Foto capturada!');
   }
 
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFoto(event.target?.result as string);
+        toast.success('Foto carregada!');
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
   function handleRemovePhoto() {
     setFoto(undefined);
+  }
+
+  function handleDayToggle(day: DayOfWeek) {
+    setDiasPermitidos(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
   }
 
   function onSubmit(data: PersonFormData) {
@@ -109,6 +132,7 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
       horarioEspecial: data.horarioEspecial,
       horarioEspecialInicio: data.horarioEspecial ? data.horarioEspecialInicio : undefined,
       horarioEspecialFim: data.horarioEspecial ? data.horarioEspecialFim : undefined,
+      diasPermitidos: data.horarioEspecial ? diasPermitidos : undefined,
       createdAt: person?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -121,6 +145,7 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
     } else {
       reset();
       setFoto(undefined);
+      setDiasPermitidos([]);
     }
   }
 
@@ -161,15 +186,33 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
                   </div>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowCamera(true)}
-                className="gap-2"
-              >
-                <Camera className="h-4 w-4" />
-                {foto ? 'Alterar Foto' : 'Capturar Foto'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCamera(true)}
+                  className="gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Capturar
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Carregar
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -298,6 +341,27 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
 
               {horarioEspecial && (
                 <>
+                  <div className="space-y-3 md:col-span-2">
+                    <Label>Dias Permitidos para Visita</Label>
+                    <div className="flex flex-wrap gap-3">
+                      {DAYS_OF_WEEK.map((day) => (
+                        <div
+                          key={day.value}
+                          className="flex items-center gap-2"
+                        >
+                          <Checkbox
+                            id={`visitor-day-${day.value}`}
+                            checked={diasPermitidos.includes(day.value)}
+                            onCheckedChange={() => handleDayToggle(day.value)}
+                          />
+                          <Label htmlFor={`visitor-day-${day.value}`} className="text-sm cursor-pointer">
+                            {day.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="horarioInicio">Horário Início Permitido</Label>
                     <Input
