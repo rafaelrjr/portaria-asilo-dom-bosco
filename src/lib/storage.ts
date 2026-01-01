@@ -1,4 +1,4 @@
-import { Person, Resident, Visit, VehicleTrip, ResidentExit } from '@/types';
+import { Person, Resident, Visit, VehicleTrip, ResidentExit, User, Vehicle, InstitutionSettings } from '@/types';
 
 const STORAGE_KEYS = {
   PERSONS: 'asilo_dom_bosco_persons',
@@ -6,6 +6,10 @@ const STORAGE_KEYS = {
   VISITS: 'asilo_dom_bosco_visits',
   VEHICLE_TRIPS: 'asilo_dom_bosco_vehicle_trips',
   RESIDENT_EXITS: 'asilo_dom_bosco_resident_exits',
+  USERS: 'asilo_dom_bosco_users',
+  CURRENT_USER: 'asilo_dom_bosco_current_user',
+  VEHICLES: 'asilo_dom_bosco_vehicles',
+  INSTITUTION: 'asilo_dom_bosco_institution',
 };
 
 // Generic storage helpers
@@ -20,6 +24,126 @@ function getFromStorage<T>(key: string): T[] {
 
 function saveToStorage<T>(key: string, data: T[]): void {
   localStorage.setItem(key, JSON.stringify(data));
+}
+
+// Simple hash for offline password storage
+export function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(36);
+}
+
+// Users
+export function getUsers(): User[] {
+  return getFromStorage<User>(STORAGE_KEYS.USERS);
+}
+
+export function saveUser(user: User): void {
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === user.id);
+  if (index >= 0) {
+    users[index] = user;
+  } else {
+    users.push(user);
+  }
+  saveToStorage(STORAGE_KEYS.USERS, users);
+}
+
+export function deleteUser(id: string): void {
+  const users = getUsers().filter(u => u.id !== id);
+  saveToStorage(STORAGE_KEYS.USERS, users);
+}
+
+export function getUserByUsername(username: string): User | undefined {
+  return getUsers().find(u => u.username.toLowerCase() === username.toLowerCase());
+}
+
+export function authenticateUser(username: string, password: string): User | null {
+  const user = getUserByUsername(username);
+  if (user && user.ativo && user.password === simpleHash(password)) {
+    return user;
+  }
+  return null;
+}
+
+export function getCurrentUser(): User | null {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCurrentUser(user: User | null): void {
+  if (user) {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  }
+}
+
+export function initializeAdminUser(): void {
+  const users = getUsers();
+  if (users.length === 0) {
+    const adminUser: User = {
+      id: crypto.randomUUID(),
+      username: 'admin',
+      password: simpleHash('admin123'),
+      nome: 'Administrador',
+      role: 'admin',
+      ativo: true,
+      createdAt: new Date().toISOString(),
+    };
+    saveUser(adminUser);
+  }
+}
+
+// Institution Settings
+export function getInstitutionSettings(): InstitutionSettings | null {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.INSTITUTION);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveInstitutionSettings(settings: InstitutionSettings): void {
+  localStorage.setItem(STORAGE_KEYS.INSTITUTION, JSON.stringify(settings));
+}
+
+// Vehicles
+export function getVehicles(): Vehicle[] {
+  return getFromStorage<Vehicle>(STORAGE_KEYS.VEHICLES);
+}
+
+export function saveVehicle(vehicle: Vehicle): void {
+  const vehicles = getVehicles();
+  const index = vehicles.findIndex(v => v.id === vehicle.id);
+  if (index >= 0) {
+    vehicles[index] = vehicle;
+  } else {
+    vehicles.push(vehicle);
+  }
+  saveToStorage(STORAGE_KEYS.VEHICLES, vehicles);
+}
+
+export function deleteVehicle(id: string): void {
+  const vehicles = getVehicles().filter(v => v.id !== id);
+  saveToStorage(STORAGE_KEYS.VEHICLES, vehicles);
+}
+
+export function getVehicleById(id: string): Vehicle | undefined {
+  return getVehicles().find(v => v.id === id);
+}
+
+export function getActiveVehicles(): Vehicle[] {
+  return getVehicles().filter(v => v.ativo);
 }
 
 // Persons
@@ -79,6 +203,89 @@ export function deleteResident(id: string): void {
 
 export function getResidentById(id: string): Resident | undefined {
   return getResidents().find(r => r.id === id);
+}
+
+export function importResidentsFromJSON(jsonData: string): { success: number; errors: number } {
+  try {
+    const data = JSON.parse(jsonData);
+    const residents = Array.isArray(data) ? data : data.residents || [];
+    let success = 0;
+    let errors = 0;
+    
+    residents.forEach((r: Partial<Resident>) => {
+      try {
+        if (r.nome) {
+          const resident: Resident = {
+            id: r.id || crypto.randomUUID(),
+            nome: r.nome,
+            quarto: r.quarto || '',
+            foto: r.foto,
+            observacoes: r.observacoes,
+            ativo: r.ativo !== undefined ? r.ativo : true,
+            autorizadoSaidaTemporaria: r.autorizadoSaidaTemporaria || false,
+            diasSaidaPermitidos: r.diasSaidaPermitidos,
+            horarioSaidaPermitido: r.horarioSaidaPermitido,
+            horarioRetornoPermitido: r.horarioRetornoPermitido,
+            createdAt: r.createdAt || new Date().toISOString(),
+          };
+          saveResident(resident);
+          success++;
+        } else {
+          errors++;
+        }
+      } catch {
+        errors++;
+      }
+    });
+    
+    return { success, errors };
+  } catch {
+    return { success: 0, errors: 1 };
+  }
+}
+
+export function importResidentsFromCSV(csvData: string): { success: number; errors: number } {
+  try {
+    const lines = csvData.split('\n').filter(l => l.trim());
+    if (lines.length < 2) return { success: 0, errors: 0 };
+    
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    let success = 0;
+    let errors = 0;
+    
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const record: Record<string, string> = {};
+        headers.forEach((h, idx) => {
+          record[h] = values[idx] || '';
+        });
+        
+        const nome = record.nome || record.name || record['nome completo'];
+        if (nome) {
+          const resident: Resident = {
+            id: crypto.randomUUID(),
+            nome,
+            quarto: record.quarto || record.room || '',
+            observacoes: record.observacoes || record.obs || '',
+            ativo: true,
+            autorizadoSaidaTemporaria: false,
+            createdAt: new Date().toISOString(),
+          };
+          saveResident(resident);
+          success++;
+        } else {
+          errors++;
+        }
+      } catch {
+        errors++;
+      }
+    }
+    
+    return { success, errors };
+  } catch {
+    return { success: 0, errors: 1 };
+  }
 }
 
 // Visits
@@ -204,6 +411,9 @@ export function exportAllData(): string {
     visits: getFromStorage<Visit>(STORAGE_KEYS.VISITS),
     vehicleTrips: getVehicleTrips(),
     residentExits: getFromStorage<ResidentExit>(STORAGE_KEYS.RESIDENT_EXITS),
+    vehicles: getVehicles(),
+    users: getUsers().map(u => ({ ...u, password: '[PROTEGIDO]' })),
+    institution: getInstitutionSettings(),
     exportedAt: new Date().toISOString(),
   };
   return JSON.stringify(data, null, 2);
@@ -217,6 +427,8 @@ export function importAllData(jsonData: string): boolean {
     if (data.visits) saveToStorage(STORAGE_KEYS.VISITS, data.visits);
     if (data.vehicleTrips) saveToStorage(STORAGE_KEYS.VEHICLE_TRIPS, data.vehicleTrips);
     if (data.residentExits) saveToStorage(STORAGE_KEYS.RESIDENT_EXITS, data.residentExits);
+    if (data.vehicles) saveToStorage(STORAGE_KEYS.VEHICLES, data.vehicles);
+    if (data.institution) saveInstitutionSettings(data.institution);
     return true;
   } catch {
     return false;
@@ -225,12 +437,16 @@ export function importAllData(jsonData: string): boolean {
 
 export function clearAllData(): void {
   Object.values(STORAGE_KEYS).forEach(key => {
-    localStorage.removeItem(key);
+    if (key !== STORAGE_KEYS.USERS && key !== STORAGE_KEYS.CURRENT_USER && key !== STORAGE_KEYS.INSTITUTION) {
+      localStorage.removeItem(key);
+    }
   });
 }
 
 // Initialize with sample residents if empty
 export function initializeSampleData(): void {
+  initializeAdminUser();
+  
   const residents = getResidents();
   if (residents.length === 0) {
     const sampleResidents: Resident[] = [

@@ -2,6 +2,53 @@ export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_ger
 
 export type VisitPurpose = 'idoso_especifico' | 'acao_social' | 'visita_geral';
 
+export type UserRole = 'admin' | 'operador' | 'visualizador';
+
+export type DayOfWeek = 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab';
+
+export const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
+  { value: 'dom', label: 'Domingo' },
+  { value: 'seg', label: 'Segunda' },
+  { value: 'ter', label: 'Terça' },
+  { value: 'qua', label: 'Quarta' },
+  { value: 'qui', label: 'Quinta' },
+  { value: 'sex', label: 'Sexta' },
+  { value: 'sab', label: 'Sábado' },
+];
+
+export interface User {
+  id: string;
+  username: string;
+  password: string; // Hash simples para sistema offline
+  nome: string;
+  role: UserRole;
+  ativo: boolean;
+  createdAt: string;
+}
+
+export interface InstitutionSettings {
+  nome: string;
+  cnpj: string;
+  endereco: string;
+  telefone: string;
+  email: string;
+  logo?: string; // Base64
+  responsavel: string;
+  observacoes?: string;
+}
+
+export interface Vehicle {
+  id: string;
+  marca: string;
+  modelo: string;
+  ano: string;
+  placa: string;
+  cor: string;
+  kmInicial: number;
+  ativo: boolean;
+  createdAt: string;
+}
+
 export interface Person {
   id: string;
   nome: string;
@@ -16,6 +63,7 @@ export interface Person {
   horarioEspecial?: boolean; // Se tem horário diferenciado
   horarioEspecialInicio?: string; // Horário de início permitido
   horarioEspecialFim?: string; // Horário de fim permitido
+  diasPermitidos?: DayOfWeek[]; // Dias da semana permitidos para horário diferenciado
   createdAt: string;
   updatedAt: string;
 }
@@ -24,9 +72,13 @@ export interface Resident {
   id: string;
   nome: string;
   quarto: string;
+  foto?: string; // Base64 da foto
   observacoes?: string;
   ativo: boolean;
   autorizadoSaidaTemporaria: boolean; // Pode fazer saída temporária
+  diasSaidaPermitidos?: DayOfWeek[]; // Dias permitidos para saída
+  horarioSaidaPermitido?: string; // Horário de saída permitido
+  horarioRetornoPermitido?: string; // Horário de retorno permitido
   createdAt: string;
 }
 
@@ -63,6 +115,7 @@ export interface ResidentExit {
 
 export interface VehicleTrip {
   id: string;
+  veiculoId?: string; // Referência ao veículo cadastrado
   veiculo: string;
   placa: string;
   motorista: string;
