@@ -51,6 +51,16 @@ export function ResidentExitForm({ onSuccess }: ResidentExitFormProps) {
 
   useEffect(() => { loadData(); }, []);
 
+  // Pre-fill horaRetornoPrevista when resident is selected
+  useEffect(() => {
+    if (selectedResidentId) {
+      const resident = residents.find(r => r.id === selectedResidentId);
+      if (resident?.horarioRetornoPermitido) {
+        setValue('horaRetornoPrevista', resident.horarioRetornoPermitido);
+      }
+    }
+  }, [selectedResidentId, residents, setValue]);
+
   async function loadData() {
     const res = await getResidents();
     setResidents(res.filter(r => r.ativo && r.autorizadoSaidaTemporaria));

@@ -1,6 +1,20 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { Person, Resident, Visit, VehicleTrip, ResidentExit, User, Vehicle, InstitutionSettings } from '@/types';
 
+export interface Backup {
+  id: string;
+  createdAt: string;
+  type: 'auto' | 'manual';
+  data: string;
+  size: number;
+}
+
+export interface BackupSettings {
+  enabled: boolean;
+  intervalMinutes: number;
+  retention: number;
+}
+
 interface AppDB extends DBSchema {
   persons: {
     key: string;
@@ -39,7 +53,12 @@ interface AppDB extends DBSchema {
   };
   settings: {
     key: string;
-    value: { id: string; data: InstitutionSettings | User | null };
+    value: { id: string; data: InstitutionSettings | User | BackupSettings | null };
+  };
+  backups: {
+    key: string;
+    value: Backup;
+    indexes: { 'by-createdAt': string };
   };
 }
 
@@ -48,8 +67,8 @@ let dbInstance: IDBPDatabase<AppDB> | null = null;
 export async function getDB(): Promise<IDBPDatabase<AppDB>> {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<AppDB>('asilo-dom-bosco', 1, {
-    upgrade(db) {
+  dbInstance = await openDB<AppDB>('asilo-dom-bosco', 2, {
+    upgrade(db, oldVersion) {
       // Persons store
       if (!db.objectStoreNames.contains('persons')) {
         const personStore = db.createObjectStore('persons', { keyPath: 'id' });
@@ -98,6 +117,14 @@ export async function getDB(): Promise<IDBPDatabase<AppDB>> {
       // Settings store
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'id' });
+      }
+
+      // Backups store (new in version 2)
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('backups')) {
+          const backupStore = db.createObjectStore('backups', { keyPath: 'id' });
+          backupStore.createIndex('by-createdAt', 'createdAt');
+        }
       }
     },
   });
@@ -157,20 +184,9 @@ export async function setCurrentUser(user: User | null): Promise<void> {
   await db.put('settings', { id: 'currentUser', data: user });
 }
 
-export async function initializeAdminUser(): Promise<void> {
+export async function hasAnyUser(): Promise<boolean> {
   const users = await getUsers();
-  if (users.length === 0) {
-    const adminUser: User = {
-      id: crypto.randomUUID(),
-      username: 'admin',
-      password: simpleHash('admin123'),
-      nome: 'Administrador',
-      role: 'admin',
-      ativo: true,
-      createdAt: new Date().toISOString(),
-    };
-    await saveUser(adminUser);
-  }
+  return users.length > 0;
 }
 
 // ==================== INSTITUTION SETTINGS ====================
@@ -183,6 +199,18 @@ export async function getInstitutionSettings(): Promise<InstitutionSettings | nu
 export async function saveInstitutionSettings(settings: InstitutionSettings): Promise<void> {
   const db = await getDB();
   await db.put('settings', { id: 'institution', data: settings });
+}
+
+// ==================== BACKUP SETTINGS ====================
+export async function getBackupSettings(): Promise<BackupSettings> {
+  const db = await getDB();
+  const setting = await db.get('settings', 'backupSettings');
+  return (setting?.data as BackupSettings) || { enabled: true, intervalMinutes: 30, retention: 20 };
+}
+
+export async function saveBackupSettings(settings: BackupSettings): Promise<void> {
+  const db = await getDB();
+  await db.put('settings', { id: 'backupSettings', data: settings });
 }
 
 // ==================== VEHICLES ====================
@@ -474,22 +502,136 @@ export async function getResidentExitsByPeriod(startDate: string, endDate: strin
   return exits.filter(e => e.dataSaida >= startDate && e.dataSaida <= endDate);
 }
 
-// ==================== BACKUP & EXPORT ====================
-export async function exportAllData(): Promise<string> {
-  const [persons, residents, visits, vehicleTrips, residentExits, vehicles, users, institution] = await Promise.all([
-    getPersons(),
-    getResidents(),
-    getVehicleTrips(),
-    getVehicleTrips(),
-    getResidentExits(),
-    getVehicles(),
-    getUsers(),
+// ==================== BACKUPS ====================
+export async function createBackup(type: 'auto' | 'manual' = 'auto'): Promise<Backup> {
+  const db = await getDB();
+  
+  // Get all data
+  const [persons, residents, rawVisits, vehicleTrips, rawExits, vehicles, users, institution] = await Promise.all([
+    db.getAll('persons'),
+    db.getAll('residents'),
+    db.getAll('visits'),
+    db.getAll('vehicleTrips'),
+    db.getAll('residentExits'),
+    db.getAll('vehicles'),
+    db.getAll('users'),
     getInstitutionSettings(),
   ]);
 
+  const data = JSON.stringify({
+    persons,
+    residents,
+    visits: rawVisits,
+    vehicleTrips,
+    residentExits: rawExits,
+    vehicles,
+    users, // Include users with password hashes for internal backup
+    institution,
+    exportedAt: new Date().toISOString(),
+  });
+
+  const backup: Backup = {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    type,
+    data,
+    size: new Blob([data]).size,
+  };
+
+  await db.put('backups', backup);
+
+  // Apply retention policy
+  const settings = await getBackupSettings();
+  const allBackups = await db.getAllFromIndex('backups', 'by-createdAt');
+  if (allBackups.length > settings.retention) {
+    const toDelete = allBackups.slice(0, allBackups.length - settings.retention);
+    for (const b of toDelete) {
+      await db.delete('backups', b.id);
+    }
+  }
+
+  return backup;
+}
+
+export async function listBackups(): Promise<Backup[]> {
   const db = await getDB();
-  const rawVisits = await db.getAll('visits');
-  const rawExits = await db.getAll('residentExits');
+  const backups = await db.getAllFromIndex('backups', 'by-createdAt');
+  // Return without the data field to avoid memory issues
+  return backups.reverse().map(b => ({ ...b, data: '' }));
+}
+
+export async function getBackup(id: string): Promise<Backup | undefined> {
+  const db = await getDB();
+  return db.get('backups', id);
+}
+
+export async function deleteBackup(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('backups', id);
+}
+
+export async function restoreBackup(id: string): Promise<boolean> {
+  const backup = await getBackup(id);
+  if (!backup) return false;
+
+  try {
+    const data = JSON.parse(backup.data);
+    const db = await getDB();
+
+    // Clear existing data
+    await db.clear('persons');
+    await db.clear('residents');
+    await db.clear('visits');
+    await db.clear('vehicleTrips');
+    await db.clear('residentExits');
+    await db.clear('vehicles');
+    await db.clear('users');
+
+    // Restore data
+    if (data.persons) {
+      for (const p of data.persons) await db.put('persons', p);
+    }
+    if (data.residents) {
+      for (const r of data.residents) await db.put('residents', r);
+    }
+    if (data.visits) {
+      for (const v of data.visits) await db.put('visits', v);
+    }
+    if (data.vehicleTrips) {
+      for (const t of data.vehicleTrips) await db.put('vehicleTrips', t);
+    }
+    if (data.residentExits) {
+      for (const e of data.residentExits) await db.put('residentExits', e);
+    }
+    if (data.vehicles) {
+      for (const v of data.vehicles) await db.put('vehicles', v);
+    }
+    if (data.users) {
+      for (const u of data.users) await db.put('users', u);
+    }
+    if (data.institution) {
+      await db.put('settings', { id: 'institution', data: data.institution });
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ==================== BACKUP & EXPORT ====================
+export async function exportAllData(): Promise<string> {
+  const db = await getDB();
+  const [persons, residents, rawVisits, vehicleTrips, rawExits, vehicles, users, institution] = await Promise.all([
+    db.getAll('persons'),
+    db.getAll('residents'),
+    db.getAll('visits'),
+    db.getAll('vehicleTrips'),
+    db.getAll('residentExits'),
+    db.getAll('vehicles'),
+    db.getAll('users'),
+    getInstitutionSettings(),
+  ]);
 
   const data = {
     persons,
@@ -547,10 +689,8 @@ export async function clearAllData(): Promise<void> {
   await db.clear('vehicles');
 }
 
-// Initialize with sample residents if empty
+// Initialize with sample residents if empty (removed admin initialization)
 export async function initializeSampleData(): Promise<void> {
-  await initializeAdminUser();
-  
   const residents = await getResidents();
   if (residents.length === 0) {
     const sampleResidents: Resident[] = [
