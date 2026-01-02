@@ -45,6 +45,7 @@ export interface Vehicle {
   placa: string;
   cor: string;
   kmInicial: number;
+  kmAtual?: number;
   ativo: boolean;
   createdAt: string;
 }
@@ -115,7 +116,7 @@ export interface ResidentExit {
 
 export interface VehicleTrip {
   id: string;
-  veiculoId?: string; // Referência ao veículo cadastrado
+  vehicleId?: string; // Referência ao veículo cadastrado
   veiculo: string;
   placa: string;
   motorista: string;

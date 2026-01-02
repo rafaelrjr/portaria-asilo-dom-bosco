@@ -2,20 +2,20 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { VehicleTrip } from '@/types';
-import { saveVehicleTrip, getActiveVehicleTrips } from '@/lib/storage';
+import { VehicleTrip, Vehicle } from '@/types';
+import { saveVehicleTrip, getActiveVehicleTrips, getActiveVehicles } from '@/lib/db';
 import { generateId, getCurrentDate, getCurrentTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Truck, LogOut, LogIn, Save } from 'lucide-react';
 
 const tripSchema = z.object({
-  veiculo: z.string().min(2, 'Veículo é obrigatório'),
-  placa: z.string().min(7, 'Placa inválida'),
+  vehicleId: z.string().min(1, 'Selecione um veículo'),
   motorista: z.string().min(3, 'Motorista é obrigatório'),
   dataSaida: z.string(),
   horaSaida: z.string(),
@@ -40,11 +40,14 @@ interface VehicleTripFormProps {
 export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
   const [activeTrips, setActiveTrips] = useState<VehicleTrip[]>([]);
   const [selectedReturn, setSelectedReturn] = useState<VehicleTrip | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<TripFormData>({
     resolver: zodResolver(tripSchema),
@@ -66,19 +69,41 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
     },
   });
 
+  const selectedVehicleId = watch('vehicleId');
+
   useEffect(() => {
-    loadActiveTrips();
+    loadData();
   }, []);
 
-  function loadActiveTrips() {
-    setActiveTrips(getActiveVehicleTrips());
+  async function loadData() {
+    const [trips, vehs] = await Promise.all([
+      getActiveVehicleTrips(),
+      getActiveVehicles(),
+    ]);
+    setActiveTrips(trips);
+    setVehicles(vehs);
   }
 
-  function onSubmitExit(data: TripFormData) {
+  function handleVehicleChange(vehicleId: string) {
+    setValue('vehicleId', vehicleId);
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setValue('kmSaida', vehicle.kmAtual || vehicle.kmInicial);
+    }
+  }
+
+  async function onSubmitExit(data: TripFormData) {
+    const vehicle = vehicles.find(v => v.id === data.vehicleId);
+    if (!vehicle) {
+      toast.error('Veículo não encontrado');
+      return;
+    }
+
     const newTrip: VehicleTrip = {
       id: generateId(),
-      veiculo: data.veiculo,
-      placa: data.placa.toUpperCase(),
+      vehicleId: data.vehicleId,
+      veiculo: `${vehicle.marca} ${vehicle.modelo}`,
+      placa: vehicle.placa,
       motorista: data.motorista,
       dataSaida: data.dataSaida,
       horaSaida: data.horaSaida,
@@ -88,23 +113,22 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
       createdAt: new Date().toISOString(),
     };
 
-    saveVehicleTrip(newTrip);
+    await saveVehicleTrip(newTrip);
     toast.success('Saída de veículo registrada!');
     reset({
       dataSaida: getCurrentDate(),
       horaSaida: getCurrentTime(),
-      veiculo: '',
-      placa: '',
+      vehicleId: '',
       motorista: '',
       kmSaida: 0,
       destino: '',
       observacoes: '',
     });
-    loadActiveTrips();
+    loadData();
     onSuccess?.();
   }
 
-  function onSubmitReturn(data: ReturnFormData) {
+  async function onSubmitReturn(data: ReturnFormData) {
     if (!selectedReturn) return;
 
     const updatedTrip: VehicleTrip = {
@@ -113,11 +137,11 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
       kmChegada: data.kmChegada,
     };
 
-    saveVehicleTrip(updatedTrip);
+    await saveVehicleTrip(updatedTrip);
     toast.success('Retorno de veículo registrado!');
     setSelectedReturn(null);
     resetReturn({ horaChegada: getCurrentTime() });
-    loadActiveTrips();
+    loadData();
     onSuccess?.();
   }
 
@@ -132,84 +156,94 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmitExit)} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="veiculo">Veículo *</Label>
-                <Input
-                  id="veiculo"
-                  placeholder="Ex: Van Sprinter"
-                  {...register('veiculo')}
-                  className={errors.veiculo ? 'border-destructive' : ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="placa">Placa *</Label>
-                <Input
-                  id="placa"
-                  placeholder="ABC-1234"
-                  {...register('placa')}
-                  className={errors.placa ? 'border-destructive' : ''}
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="motorista">Motorista *</Label>
-                <Input
-                  id="motorista"
-                  placeholder="Nome do motorista"
-                  {...register('motorista')}
-                  className={errors.motorista ? 'border-destructive' : ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dataSaida">Data</Label>
-                <Input
-                  id="dataSaida"
-                  type="date"
-                  {...register('dataSaida')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="horaSaida">Hora Saída</Label>
-                <Input
-                  id="horaSaida"
-                  type="time"
-                  {...register('horaSaida')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="kmSaida">KM Saída *</Label>
-                <Input
-                  id="kmSaida"
-                  type="number"
-                  placeholder="0"
-                  {...register('kmSaida', { valueAsNumber: true })}
-                  className={errors.kmSaida ? 'border-destructive' : ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="destino">Destino</Label>
-                <Input
-                  id="destino"
-                  placeholder="Destino da viagem"
-                  {...register('destino')}
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="observacoes">Observações</Label>
-                <Textarea
-                  id="observacoes"
-                  placeholder="Observações..."
-                  rows={2}
-                  {...register('observacoes')}
-                />
-              </div>
+          {vehicles.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhum veículo cadastrado.</p>
+              <p className="text-sm text-muted-foreground">Cadastre veículos na aba "Veículos" primeiro.</p>
             </div>
-            <Button type="submit" disabled={isSubmitting} className="w-full gap-2">
-              <Truck className="h-4 w-4" />
-              Registrar Saída
-            </Button>
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit(onSubmitExit)} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="vehicleId">Veículo *</Label>
+                  <Select
+                    value={selectedVehicleId}
+                    onValueChange={handleVehicleChange}
+                  >
+                    <SelectTrigger className={errors.vehicleId ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Selecione um veículo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicles.map((vehicle) => (
+                        <SelectItem key={vehicle.id} value={vehicle.id}>
+                          {vehicle.marca} {vehicle.modelo} - {vehicle.placa} ({vehicle.cor})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.vehicleId && (
+                    <p className="text-sm text-destructive">{errors.vehicleId.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="motorista">Motorista *</Label>
+                  <Input
+                    id="motorista"
+                    placeholder="Nome do motorista"
+                    {...register('motorista')}
+                    className={errors.motorista ? 'border-destructive' : ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dataSaida">Data</Label>
+                  <Input
+                    id="dataSaida"
+                    type="date"
+                    {...register('dataSaida')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="horaSaida">Hora Saída</Label>
+                  <Input
+                    id="horaSaida"
+                    type="time"
+                    {...register('horaSaida')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="kmSaida">KM Saída *</Label>
+                  <Input
+                    id="kmSaida"
+                    type="number"
+                    placeholder="0"
+                    {...register('kmSaida', { valueAsNumber: true })}
+                    className={errors.kmSaida ? 'border-destructive' : ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="destino">Destino</Label>
+                  <Input
+                    id="destino"
+                    placeholder="Destino da viagem"
+                    {...register('destino')}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="observacoes">Observações</Label>
+                  <Textarea
+                    id="observacoes"
+                    placeholder="Observações..."
+                    rows={2}
+                    {...register('observacoes')}
+                  />
+                </div>
+              </div>
+              <Button type="submit" disabled={isSubmitting} className="w-full gap-2">
+                <Truck className="h-4 w-4" />
+                Registrar Saída
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
 

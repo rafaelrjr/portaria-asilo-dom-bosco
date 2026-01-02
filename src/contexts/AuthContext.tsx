@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
-import { getCurrentUser, setCurrentUser, authenticateUser, initializeAdminUser } from '@/lib/storage';
+import { getCurrentUser, setCurrentUser, authenticateUser, initializeAdminUser } from '@/lib/db';
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
   hasRole: (roles: UserRole[]) => boolean;
   canEdit: boolean;
   canManage: boolean;
@@ -16,28 +17,33 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeAdminUser();
-    const savedUser = getCurrentUser();
-    if (savedUser) {
-      setUser(savedUser);
+    async function init() {
+      await initializeAdminUser();
+      const savedUser = await getCurrentUser();
+      if (savedUser) {
+        setUser(savedUser);
+      }
+      setIsLoading(false);
     }
+    init();
   }, []);
 
-  const login = (username: string, password: string): boolean => {
-    const authenticatedUser = authenticateUser(username, password);
+  const login = async (username: string, password: string): Promise<boolean> => {
+    const authenticatedUser = await authenticateUser(username, password);
     if (authenticatedUser) {
       setUser(authenticatedUser);
-      setCurrentUser(authenticatedUser);
+      await setCurrentUser(authenticatedUser);
       return true;
     }
     return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
-    setCurrentUser(null);
+    await setCurrentUser(null);
   };
 
   const hasRole = (roles: UserRole[]): boolean => {
@@ -55,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isAuthenticated: !!user,
+        isLoading,
         hasRole,
         canEdit,
         canManage,
