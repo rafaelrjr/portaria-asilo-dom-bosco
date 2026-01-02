@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Download } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Download, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,10 +15,18 @@ const navItems = [
   { to: '/frota', icon: Truck, label: 'Frota' },
   { to: '/historico', icon: History, label: 'Histórico' },
   { to: '/backup', icon: Download, label: 'Backup/Exportar' },
+  { to: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout();
+    navigate('/login');
+  }
 
   return (
     <aside className={cn('fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300', collapsed ? 'w-20' : 'w-64')}>
@@ -26,7 +35,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="animate-fade-in">
               <h1 className="font-display text-lg font-bold text-sidebar-primary-foreground">Asilo Dom Bosco</h1>
-              <p className="text-xs text-sidebar-foreground/70">Controle de Visitantes</p>
+              <p className="text-xs text-sidebar-foreground/70">Sistema de Portaria</p>
             </div>
           )}
           <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)} className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -41,8 +50,21 @@ export function Sidebar() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-sidebar-border p-4">
-          {!collapsed && <p className="text-center text-xs text-sidebar-foreground/60">Sistema Offline v1.0</p>}
+        <div className="border-t border-sidebar-border p-3">
+          {!collapsed && user && (
+            <div className="mb-3 px-3">
+              <p className="text-sm font-medium text-sidebar-foreground">{user.nome}</p>
+              <p className="text-xs text-sidebar-foreground/60 capitalize">{user.role}</p>
+            </div>
+          )}
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout} 
+            className={cn('w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground', collapsed ? 'justify-center' : 'justify-start gap-2')}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && <span>Sair</span>}
+          </Button>
         </div>
       </div>
     </aside>

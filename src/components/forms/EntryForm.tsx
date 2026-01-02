@@ -20,6 +20,7 @@ const entrySchema = z.object({
   proposito: z.string(),
   idosoId: z.string().optional(),
   descricaoAcaoSocial: z.string().optional(),
+  pessoaDepartamento: z.string().optional(),
   observacoes: z.string().optional(),
 });
 
@@ -97,6 +98,7 @@ export function EntryForm() {
       idosoId: data.idosoId,
       idoso: data.idosoId ? residents.find(r => r.id === data.idosoId) : undefined,
       descricaoAcaoSocial: data.descricaoAcaoSocial,
+      pessoaDepartamento: data.pessoaDepartamento,
       dataEntrada: getCurrentDate(),
       horaEntrada: getCurrentTime(),
       etiquetaEmitida: false,
@@ -197,6 +199,12 @@ export function EntryForm() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {proposito === 'reuniao' && (
+                    <div className="space-y-2">
+                      <Label>Pessoa/Departamento *</Label>
+                      <Input placeholder="Nome da pessoa ou departamento" {...register('pessoaDepartamento')} />
+                    </div>
+                  )}
                   {proposito === 'idoso_especifico' && (
                     <div className="space-y-2">
                       <Label>Idoso Visitado *</Label>

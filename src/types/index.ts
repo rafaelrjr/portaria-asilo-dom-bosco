@@ -92,6 +92,7 @@ export interface Visit {
   idosoId?: string;
   idoso?: Resident;
   descricaoAcaoSocial?: string;
+  pessoaDepartamento?: string; // Para reuniões
   dataEntrada: string;
   horaEntrada: string;
   horaSaida?: string;

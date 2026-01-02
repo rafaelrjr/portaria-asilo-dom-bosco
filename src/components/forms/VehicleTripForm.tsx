@@ -76,12 +76,16 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
   }, []);
 
   async function loadData() {
-    const [trips, vehs] = await Promise.all([
+    const [trips, allVehicles] = await Promise.all([
       getActiveVehicleTrips(),
       getActiveVehicles(),
     ]);
     setActiveTrips(trips);
-    setVehicles(vehs);
+    
+    // Filtrar veículos que já estão em viagem (não podem sair novamente)
+    const vehiclesInTrip = new Set(trips.map(t => t.vehicleId));
+    const availableVehicles = allVehicles.filter(v => !vehiclesInTrip.has(v.id));
+    setVehicles(availableVehicles);
   }
 
   async function handleVehicleChange(vehicleId: string) {
@@ -132,6 +136,12 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
 
   async function onSubmitReturn(data: ReturnFormData) {
     if (!selectedReturn) return;
+
+    // Validar que KM de chegada não é menor que KM de saída
+    if (data.kmChegada < selectedReturn.kmSaida) {
+      toast.error(`KM de chegada (${data.kmChegada.toLocaleString()}) não pode ser menor que KM de saída (${selectedReturn.kmSaida.toLocaleString()})`);
+      return;
+    }
 
     const updatedTrip: VehicleTrip = {
       ...selectedReturn,
@@ -280,11 +290,12 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="kmChegada">KM Chegada *</Label>
+                  <Label htmlFor="kmChegada">KM Chegada * (mín: {selectedReturn?.kmSaida.toLocaleString()})</Label>
                   <Input
                     id="kmChegada"
                     type="number"
                     placeholder="0"
+                    min={selectedReturn?.kmSaida}
                     {...registerReturn('kmChegada', { valueAsNumber: true })}
                     className={returnErrors.kmChegada ? 'border-destructive' : ''}
                   />
