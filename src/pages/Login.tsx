@@ -55,8 +55,8 @@ export default function Login() {
             </div>
           )}
           <div>
-            <CardTitle className="text-2xl font-display">{institution?.nome || 'Sistema de Controle'}</CardTitle>
-            <CardDescription>Sistema de Controle de Visitantes</CardDescription>
+            <CardTitle className="text-2xl font-display">{institution?.nome || 'Asilo Dom Bosco'}</CardTitle>
+            <CardDescription>Sistema de Portaria</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
