@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { getActiveVisits, getActiveResidentExits, getPersonById } from '@/lib/storage';
 import { VISITING_HOURS, Visit, ResidentExit, Person } from '@/types';
 import { getCurrentTime } from '@/lib/utils';
-import { AlertTriangle, Clock, UserX, X } from 'lucide-react';
+import { AlertTriangle, Clock, UserX, X, Volume2, VolumeX } from 'lucide-react';
 
 interface AlertItem {
   id: string;
@@ -19,6 +21,22 @@ interface AlertItem {
 export function VisitingHoursAlert() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [playedAlerts, setPlayedAlerts] = useState<Set<string>>(new Set());
+  const alertSound = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Criar elemento de áudio para alertas
+    alertSound.current = new Audio('/alert-sound.mp3');
+    alertSound.current.volume = 0.7;
+    
+    return () => {
+      if (alertSound.current) {
+        alertSound.current.pause();
+        alertSound.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     checkAlerts();
@@ -63,7 +81,15 @@ export function VisitingHoursAlert() {
       }
     }
 
-    setAlerts(newAlerts.filter(a => !dismissedAlerts.has(a.id)));
+    const filteredAlerts = newAlerts.filter(a => !dismissedAlerts.has(a.id));
+    setAlerts(filteredAlerts);
+
+    // Tocar som para alertas novos
+    const newUnplayedAlerts = filteredAlerts.filter(a => !playedAlerts.has(a.id));
+    if (newUnplayedAlerts.length > 0 && soundEnabled && alertSound.current) {
+      alertSound.current.play().catch(e => console.warn('Erro ao tocar som:', e));
+      setPlayedAlerts(prev => new Set([...prev, ...newUnplayedAlerts.map(a => a.id)]));
+    }
   }
 
   function dismissAlert(id: string) {
@@ -78,10 +104,22 @@ export function VisitingHoursAlert() {
   return (
     <Card className="border-warning bg-warning/5">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-warning">
-          <AlertTriangle className="h-5 w-5" />
-          Alertas de Horário
-          <Badge variant="destructive">{alerts.length}</Badge>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-warning">
+            <AlertTriangle className="h-5 w-5" />
+            Alertas de Horário
+            <Badge variant="destructive">{alerts.length}</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="sound-toggle" className="text-sm font-normal text-muted-foreground">
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </Label>
+            <Switch
+              id="sound-toggle"
+              checked={soundEnabled}
+              onCheckedChange={setSoundEnabled}
+            />
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
