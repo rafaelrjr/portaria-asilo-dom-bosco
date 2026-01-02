@@ -74,7 +74,6 @@ export default function Login() {
               {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
-          <p className="text-xs text-muted-foreground text-center mt-6">Primeiro acesso? Use: admin / admin123</p>
         </CardContent>
       </Card>
     </div>

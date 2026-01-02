@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
-import { getCurrentUser, setCurrentUser, authenticateUser, initializeAdminUser } from '@/lib/db';
+import { getCurrentUser, setCurrentUser, authenticateUser, hasAnyUser } from '@/lib/db';
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +11,7 @@ interface AuthContextType {
   hasRole: (roles: UserRole[]) => boolean;
   canEdit: boolean;
   canManage: boolean;
+  needsSetup: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -18,10 +19,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
     async function init() {
-      await initializeAdminUser();
+      // Check if there are any users
+      const hasUsers = await hasAnyUser();
+      if (!hasUsers) {
+        setNeedsSetup(true);
+        setIsLoading(false);
+        return;
+      }
+
       const savedUser = await getCurrentUser();
       if (savedUser) {
         setUser(savedUser);
@@ -65,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         canEdit,
         canManage,
+        needsSetup,
       }}
     >
       {children}
