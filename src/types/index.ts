@@ -1,6 +1,6 @@
 export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_geral' | 'voluntario' | 'diretoria' | 'outro';
 
-export type VisitPurpose = 'idoso_especifico' | 'acao_social' | 'visita_geral';
+export type VisitPurpose = 'idoso_especifico' | 'acao_social' | 'visita_geral' | 'reuniao' | 'prestacao_servico';
 
 export type UserRole = 'admin' | 'operador' | 'visualizador';
 

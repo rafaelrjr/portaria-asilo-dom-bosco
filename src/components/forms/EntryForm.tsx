@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Person, Visit, VisitPurpose, Resident } from '@/types';
-import { searchPersons, getResidents, saveVisit } from '@/lib/storage';
+import { searchPersons, getResidents, saveVisit, getActiveVisits } from '@/lib/storage';
 import { getCurrentDate, getCurrentTime, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,6 +79,16 @@ export function EntryForm() {
       toast.error('Selecione uma pessoa para registrar a entrada');
       return;
     }
+
+    // Verificar se a pessoa já possui visita ativa
+    const activeVisits = await getActiveVisits();
+    const hasActiveVisit = activeVisits.some(v => v.pessoaId === selectedPerson.id);
+
+    if (hasActiveVisit) {
+      toast.error('Esta pessoa já possui uma visita em andamento. Registre a saída antes de criar nova entrada.');
+      return;
+    }
+
     const visit: Visit = {
       id: generateId(),
       pessoaId: selectedPerson.id,
@@ -182,6 +192,8 @@ export function EntryForm() {
                         <SelectItem value="idoso_especifico">Visita a Idoso Específico</SelectItem>
                         <SelectItem value="acao_social">Ação Social</SelectItem>
                         <SelectItem value="visita_geral">Visita Geral</SelectItem>
+                        <SelectItem value="reuniao">Reunião</SelectItem>
+                        <SelectItem value="prestacao_servico">Prestação de Serviço</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
