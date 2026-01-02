@@ -427,6 +427,18 @@ export async function getVehicleTripsByPeriod(startDate: string, endDate: string
   return trips.filter(t => t.dataSaida >= startDate && t.dataSaida <= endDate);
 }
 
+export async function getLastKmChegadaForVehicle(vehicleId: string): Promise<number | undefined> {
+  const trips = await getVehicleTrips();
+  const vehicleTrips = trips
+    .filter(t => t.vehicleId === vehicleId && t.kmChegada !== undefined)
+    .sort((a, b) => {
+      const dateA = `${a.dataSaida} ${a.horaChegada || ''}`;
+      const dateB = `${b.dataSaida} ${b.horaChegada || ''}`;
+      return dateB.localeCompare(dateA);
+    });
+  return vehicleTrips[0]?.kmChegada;
+}
+
 // ==================== RESIDENT EXITS ====================
 export async function getResidentExits(): Promise<ResidentExit[]> {
   const db = await getDB();
