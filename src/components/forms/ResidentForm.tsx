@@ -96,14 +96,14 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       let result: { success: number; errors: number };
 
       if (file.name.endsWith('.json')) {
-        result = importResidentsFromJSON(content);
+        result = await importResidentsFromJSON(content);
       } else if (file.name.endsWith('.csv')) {
-        result = importResidentsFromCSV(content);
+        result = await importResidentsFromCSV(content);
       } else {
         toast.error('Formato não suportado. Use JSON ou CSV.');
         return;
@@ -124,7 +124,7 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
     }
   }
 
-  function onSubmit(data: ResidentFormData) {
+  async function onSubmit(data: ResidentFormData) {
     const newResident: Resident = {
       id: resident?.id || generateId(),
       nome: data.nome,
@@ -139,7 +139,7 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
       createdAt: resident?.createdAt || new Date().toISOString(),
     };
 
-    saveResident(newResident);
+    await saveResident(newResident);
     toast.success(isEditing ? 'Idoso atualizado!' : 'Idoso cadastrado com sucesso!');
     
     if (onSuccess) {

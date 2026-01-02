@@ -1,4 +1,4 @@
-export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_geral' | 'outro';
+export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_geral' | 'voluntario' | 'diretoria' | 'outro';
 
 export type VisitPurpose = 'idoso_especifico' | 'acao_social' | 'visita_geral';
 
@@ -22,6 +22,7 @@ export interface User {
   password: string; // Hash simples para sistema offline
   nome: string;
   role: UserRole;
+  email?: string; // Obrigatório apenas para admin
   ativo: boolean;
   createdAt: string;
 }

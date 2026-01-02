@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,7 +45,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Building2, Users, Save, UserPlus, Trash2, Camera, Upload } from 'lucide-react';
+import { Building2, Users, Save, UserPlus, Trash2, Camera, Upload, Key } from 'lucide-react';
 
 const institutionSchema = z.object({
   nome: z.string().min(3, 'Nome é obrigatório'),
@@ -61,22 +61,25 @@ type InstitutionFormData = z.infer<typeof institutionSchema>;
 
 const userSchema = z.object({
   username: z.string().min(3, 'Usuário deve ter pelo menos 3 caracteres'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  password: z.string().optional(),
   nome: z.string().min(3, 'Nome é obrigatório'),
   role: z.string(),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
 
 export default function Settings() {
   const { user: currentUser, canManage } = useAuth();
-  const [users, setUsers] = useState<User[]>(getUsers());
-  const [logo, setLogo] = useState<string | undefined>(getInstitutionSettings()?.logo);
+  const [users, setUsers] = useState<User[]>([]);
+  const [logo, setLogo] = useState<string | undefined>(undefined);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const existingSettings = getInstitutionSettings();
 
   const {
     register: registerInstitution,
@@ -85,9 +88,7 @@ export default function Settings() {
     formState: { errors: institutionErrors },
   } = useForm<InstitutionFormData>({
     resolver: zodResolver(institutionSchema),
-    defaultValues: existingSettings || {
-      nome: 'Asilo Dom Bosco',
-    },
+    defaultValues: { nome: 'Asilo Dom Bosco' },
   });
 
   const {
@@ -95,13 +96,37 @@ export default function Settings() {
     handleSubmit: handleSubmitUser,
     reset: resetUser,
     setValue: setUserValue,
+    watch: watchUser,
     formState: { errors: userErrors },
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
-    defaultValues: {
-      role: 'operador',
-    },
+    defaultValues: { role: 'operador' },
   });
+
+  const selectedRole = watchUser('role');
+
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      const [usersData, institutionData] = await Promise.all([
+        getUsers(),
+        getInstitutionSettings()
+      ]);
+      setUsers(usersData);
+      if (institutionData) {
+        setLogo(institutionData.logo);
+        setInstitutionValue('nome', institutionData.nome);
+        setInstitutionValue('cnpj', institutionData.cnpj);
+        setInstitutionValue('endereco', institutionData.endereco);
+        setInstitutionValue('telefone', institutionData.telefone);
+        setInstitutionValue('email', institutionData.email);
+        setInstitutionValue('responsavel', institutionData.responsavel);
+        setInstitutionValue('observacoes', institutionData.observacoes);
+      }
+      setIsLoading(false);
+    }
+    loadData();
+  }, [setInstitutionValue]);
 
   function handleCNPJChange(e: React.ChangeEvent<HTMLInputElement>) {
     setInstitutionValue('cnpj', formatCNPJ(e.target.value));
@@ -122,7 +147,7 @@ export default function Settings() {
     }
   }
 
-  function onSubmitInstitution(data: InstitutionFormData) {
+  async function onSubmitInstitution(data: InstitutionFormData) {
     const settings: InstitutionSettings = {
       nome: data.nome,
       cnpj: data.cnpj || '',
@@ -133,25 +158,39 @@ export default function Settings() {
       observacoes: data.observacoes,
       logo,
     };
-    saveInstitutionSettings(settings);
+    await saveInstitutionSettings(settings);
     toast.success('Configurações salvas com sucesso!');
   }
 
-  function onSubmitUser(data: UserFormData) {
+  async function onSubmitUser(data: UserFormData) {
+    // Validate password for new users
+    if (!editingUser && (!data.password || data.password.length < 6)) {
+      toast.error('Senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    // Validate email for admin users
+    if (data.role === 'admin' && !data.email) {
+      toast.error('E-mail é obrigatório para usuários administradores');
+      return;
+    }
+
     const newUser: User = {
       id: editingUser?.id || generateId(),
       username: data.username,
-      password: editingUser && data.password === '' 
+      password: editingUser && !data.password 
         ? editingUser.password 
-        : simpleHash(data.password),
+        : simpleHash(data.password!),
       nome: data.nome,
       role: data.role as UserRole,
+      email: data.role === 'admin' ? data.email : undefined,
       ativo: true,
       createdAt: editingUser?.createdAt || new Date().toISOString(),
     };
 
-    saveUser(newUser);
-    setUsers(getUsers());
+    await saveUser(newUser);
+    const updatedUsers = await getUsers();
+    setUsers(updatedUsers);
     setIsUserDialogOpen(false);
     setEditingUser(null);
     resetUser({ role: 'operador' });
@@ -163,27 +202,53 @@ export default function Settings() {
     setUserValue('username', user.username);
     setUserValue('nome', user.nome);
     setUserValue('role', user.role);
+    setUserValue('email', user.email || '');
     setUserValue('password', '');
     setIsUserDialogOpen(true);
   }
 
-  function handleDeleteUser(userId: string) {
+  async function handleDeleteUser(userId: string) {
     if (userId === currentUser?.id) {
       toast.error('Você não pode excluir seu próprio usuário');
       return;
     }
-    deleteUser(userId);
-    setUsers(getUsers());
+    await deleteUser(userId);
+    const updatedUsers = await getUsers();
+    setUsers(updatedUsers);
     toast.success('Usuário excluído');
   }
 
-  function handleToggleUserActive(user: User) {
+  async function handleToggleUserActive(user: User) {
     if (user.id === currentUser?.id) {
       toast.error('Você não pode desativar seu próprio usuário');
       return;
     }
-    saveUser({ ...user, ativo: !user.ativo });
-    setUsers(getUsers());
+    await saveUser({ ...user, ativo: !user.ativo });
+    const updatedUsers = await getUsers();
+    setUsers(updatedUsers);
+  }
+
+  function handleResetPasswordClick(user: User) {
+    setUserToResetPassword(user);
+    setNewPassword('');
+    setIsResetPasswordDialogOpen(true);
+  }
+
+  async function handleResetPassword() {
+    if (!userToResetPassword || newPassword.length < 6) {
+      toast.error('Senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+    await saveUser({ 
+      ...userToResetPassword, 
+      password: simpleHash(newPassword) 
+    });
+    const updatedUsers = await getUsers();
+    setUsers(updatedUsers);
+    setIsResetPasswordDialogOpen(false);
+    setUserToResetPassword(null);
+    setNewPassword('');
+    toast.success('Senha redefinida com sucesso!');
   }
 
   function getRoleLabel(role: UserRole): string {
@@ -211,6 +276,16 @@ export default function Settings() {
           <p className="text-muted-foreground">
             Você não tem permissão para acessar esta página.
           </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-96">
+          <p className="text-muted-foreground">Carregando...</p>
         </div>
       </Layout>
     );
@@ -400,19 +475,17 @@ export default function Settings() {
 
                       <div className="space-y-2">
                         <Label htmlFor="password">
-                          Senha {editingUser && '(deixe vazio para manter)'}
+                          Senha {editingUser ? '(deixe vazio para manter)' : '*'}
                         </Label>
                         <Input
                           id="password"
                           type="password"
                           placeholder="******"
-                          {...registerUser('password', { 
-                            required: !editingUser 
-                          })}
+                          {...registerUser('password')}
                           className={userErrors.password ? 'border-destructive' : ''}
                         />
-                        {userErrors.password && (
-                          <p className="text-sm text-destructive">{userErrors.password.message}</p>
+                        {!editingUser && (
+                          <p className="text-xs text-muted-foreground">Mínimo 6 caracteres</p>
                         )}
                       </div>
 
@@ -429,7 +502,7 @@ export default function Settings() {
                       <div className="space-y-2">
                         <Label>Perfil de Acesso *</Label>
                         <Select
-                          defaultValue={editingUser?.role || 'operador'}
+                          value={selectedRole}
                           onValueChange={(value) => setUserValue('role', value)}
                         >
                           <SelectTrigger>
@@ -448,6 +521,22 @@ export default function Settings() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {selectedRole === 'admin' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="email">E-mail * (para recuperação de senha)</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="email@exemplo.com"
+                            {...registerUser('email')}
+                            className={userErrors.email ? 'border-destructive' : ''}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Obrigatório para administradores
+                          </p>
+                        </div>
+                      )}
 
                       <div className="flex justify-end gap-2 pt-4">
                         <Button
@@ -500,6 +589,15 @@ export default function Settings() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() => handleResetPasswordClick(user)}
+                                disabled={user.id === currentUser?.id}
+                                title="Redefinir Senha"
+                              >
+                                <Key className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleEditUser(user)}
                               >
                                 Editar
@@ -523,9 +621,9 @@ export default function Settings() {
                 <div className="mt-6 p-4 bg-muted/50 rounded-lg">
                   <h4 className="font-medium mb-2">Níveis de Acesso:</h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    <li><strong>Administrador:</strong> Acesso total ao sistema, gerencia usuários e configurações</li>
-                    <li><strong>Operador:</strong> Registra entradas, saídas e cadastros. Não gerencia usuários</li>
-                    <li><strong>Visualizador:</strong> Apenas consulta dados e emite relatórios</li>
+                    <li><strong>Administrador:</strong> Acesso total ao sistema, gerencia usuários e configurações. Requer e-mail para recuperação de senha.</li>
+                    <li><strong>Operador:</strong> Registra entradas, saídas e cadastros. Não gerencia usuários. Recuperação de senha somente pelo admin.</li>
+                    <li><strong>Visualizador:</strong> Apenas consulta dados e emite relatórios. Recuperação de senha somente pelo admin.</li>
                   </ul>
                 </div>
               </CardContent>
@@ -533,6 +631,42 @@ export default function Settings() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Redefinir Senha</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Redefinir senha do usuário: <strong>{userToResetPassword?.nome}</strong>
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsResetPasswordDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleResetPassword} className="gap-2">
+                <Key className="h-4 w-4" />
+                Redefinir
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

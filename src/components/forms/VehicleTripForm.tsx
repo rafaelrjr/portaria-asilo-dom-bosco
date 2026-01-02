@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { VehicleTrip, Vehicle } from '@/types';
-import { saveVehicleTrip, getActiveVehicleTrips, getActiveVehicles } from '@/lib/db';
+import { saveVehicleTrip, getActiveVehicleTrips, getActiveVehicles, getLastKmChegadaForVehicle } from '@/lib/db';
 import { generateId, getCurrentDate, getCurrentTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,11 +84,13 @@ export function VehicleTripForm({ onSuccess }: VehicleTripFormProps) {
     setVehicles(vehs);
   }
 
-  function handleVehicleChange(vehicleId: string) {
+  async function handleVehicleChange(vehicleId: string) {
     setValue('vehicleId', vehicleId);
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (vehicle) {
-      setValue('kmSaida', vehicle.kmAtual || vehicle.kmInicial);
+      // Buscar último Km de chegada para este veículo
+      const lastKmChegada = await getLastKmChegadaForVehicle(vehicleId);
+      setValue('kmSaida', lastKmChegada ?? vehicle.kmAtual ?? vehicle.kmInicial);
     }
   }
 
