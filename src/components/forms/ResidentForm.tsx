@@ -18,7 +18,7 @@ import { WebcamCapture } from '@/components/camera/WebcamCapture';
 
 const residentSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  quarto: z.string().min(1, 'Quarto é obrigatório'),
+  quarto: z.string().optional(),
   observacoes: z.string().optional(),
   ativo: z.boolean(),
   autorizadoSaidaTemporaria: z.boolean(),
@@ -255,16 +255,12 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
 
               {/* Quarto */}
               <div className="space-y-2">
-                <Label htmlFor="quarto">Quarto *</Label>
+                <Label htmlFor="quarto">Quarto</Label>
                 <Input
                   id="quarto"
-                  placeholder="Ex: 101"
+                  placeholder="Ex: 101 (opcional)"
                   {...register('quarto')}
-                  className={errors.quarto ? 'border-destructive' : ''}
                 />
-                {errors.quarto && (
-                  <p className="text-sm text-destructive">{errors.quarto.message}</p>
-                )}
               </div>
 
               {/* Ativo */}

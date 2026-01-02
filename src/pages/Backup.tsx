@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { exportAllData, importAllData, getPersons, getResidents, getVisits, getVehicleTrips, getResidentExits } from '@/lib/storage';
+import { exportAllData, importAllData, getPersons, getResidents, getVisits, getVehicleTrips, getResidentExits } from '@/lib/db';
 import { downloadBackup, exportVisitsReport, exportVehicleTripsReport, exportResidentExitsReport, exportPersonsReport, exportResidentsReport } from '@/lib/exportUtils';
 import { Download, Upload, Database, Users, Home, History, Truck, DoorOpen, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,8 +11,8 @@ export default function Backup() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
 
-  function handleExportBackup() {
-    const data = exportAllData();
+  async function handleExportBackup() {
+    const data = await exportAllData();
     downloadBackup(data);
     toast.success('Backup exportado com sucesso!');
   }
@@ -22,9 +22,9 @@ export default function Backup() {
     if (!file) return;
     setImporting(true);
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
-      if (importAllData(content)) {
+      if (await importAllData(content)) {
         toast.success('Dados importados com sucesso!');
       } else {
         toast.error('Erro ao importar dados. Arquivo inválido.');
@@ -34,12 +34,37 @@ export default function Backup() {
     reader.readAsText(file);
   }
 
+  async function handleExportPersons() {
+    const persons = await getPersons();
+    exportPersonsReport(persons);
+  }
+
+  async function handleExportResidents() {
+    const residents = await getResidents();
+    exportResidentsReport(residents);
+  }
+
+  async function handleExportVisits() {
+    const visits = await getVisits();
+    exportVisitsReport(visits);
+  }
+
+  async function handleExportVehicleTrips() {
+    const trips = await getVehicleTrips();
+    exportVehicleTripsReport(trips);
+  }
+
+  async function handleExportResidentExits() {
+    const exits = await getResidentExits();
+    exportResidentExitsReport(exits);
+  }
+
   const exports = [
-    { label: 'Visitantes Cadastrados', icon: Users, action: () => exportPersonsReport(getPersons()) },
-    { label: 'Idosos Residentes', icon: Home, action: () => exportResidentsReport(getResidents()) },
-    { label: 'Histórico de Visitas', icon: History, action: () => exportVisitsReport(getVisits()) },
-    { label: 'Viagens de Veículos', icon: Truck, action: () => exportVehicleTripsReport(getVehicleTrips()) },
-    { label: 'Saídas Temporárias', icon: DoorOpen, action: () => exportResidentExitsReport(getResidentExits()) },
+    { label: 'Visitantes Cadastrados', icon: Users, action: handleExportPersons },
+    { label: 'Idosos Residentes', icon: Home, action: handleExportResidents },
+    { label: 'Histórico de Visitas', icon: History, action: handleExportVisits },
+    { label: 'Viagens de Veículos', icon: Truck, action: handleExportVehicleTrips },
+    { label: 'Saídas Temporárias', icon: DoorOpen, action: handleExportResidentExits },
   ];
 
   return (
