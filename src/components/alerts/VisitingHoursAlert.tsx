@@ -3,11 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  getActiveVisits, 
-  getActiveResidentExits,
-  getPersonById,
-} from '@/lib/storage';
+import { getActiveVisits, getActiveResidentExits, getPersonById } from '@/lib/storage';
 import { VISITING_HOURS, Visit, ResidentExit, Person } from '@/types';
 import { getCurrentTime } from '@/lib/utils';
 import { AlertTriangle, Clock, UserX, X } from 'lucide-react';
@@ -26,24 +22,24 @@ export function VisitingHoursAlert() {
 
   useEffect(() => {
     checkAlerts();
-    const interval = setInterval(checkAlerts, 60000); // Check every minute
+    const interval = setInterval(checkAlerts, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  function checkAlerts() {
+  async function checkAlerts() {
     const currentTime = getCurrentTime();
     const newAlerts: AlertItem[] = [];
 
-    // Check visitors who haven't left after closing time
     if (currentTime > VISITING_HOURS.fim) {
-      const activeVisits = getActiveVisits();
-      activeVisits.forEach((visit: Visit) => {
-        const person = visit.pessoa || getPersonById(visit.pessoaId);
-        // Skip if person has special hours
-        if (person?.horarioEspecial && person.horarioEspecialFim && currentTime <= person.horarioEspecialFim) {
-          return;
+      const activeVisits = await getActiveVisits();
+      for (const visit of activeVisits) {
+        let person = visit.pessoa;
+        if (!person) {
+          person = await getPersonById(visit.pessoaId);
         }
-        
+        if (person?.horarioEspecial && person.horarioEspecialFim && currentTime <= person.horarioEspecialFim) {
+          continue;
+        }
         newAlerts.push({
           id: `late-${visit.id}`,
           type: 'late_exit',
@@ -51,12 +47,11 @@ export function VisitingHoursAlert() {
           details: `${person?.nome || 'Desconhecido'} entrou às ${visit.horaEntrada} e ainda não saiu. Horário limite: ${VISITING_HOURS.fim}`,
           timestamp: currentTime,
         });
-      });
+      }
     }
 
-    // Check residents who haven't returned
-    const activeExits = getActiveResidentExits();
-    activeExits.forEach((exit: ResidentExit) => {
+    const activeExits = await getActiveResidentExits();
+    for (const exit of activeExits) {
       if (currentTime > exit.horaRetornoPrevista) {
         newAlerts.push({
           id: `resident-${exit.id}`,
@@ -66,50 +61,9 @@ export function VisitingHoursAlert() {
           timestamp: currentTime,
         });
       }
-    });
+    }
 
     setAlerts(newAlerts.filter(a => !dismissedAlerts.has(a.id)));
-  }
-
-  function checkEntryTime(entryTime: string, person?: Person): AlertItem | null {
-    const currentTime = getCurrentTime();
-    
-    // Check if person has special visiting hours
-    if (person?.horarioEspecial && person.horarioEspecialInicio) {
-      if (entryTime < person.horarioEspecialInicio) {
-        return {
-          id: `early-${Date.now()}`,
-          type: 'early_entry',
-          message: `Entrada antes do horário especial`,
-          details: `${person.nome} está entrando às ${entryTime}. Horário especial: ${person.horarioEspecialInicio} - ${person.horarioEspecialFim}`,
-          timestamp: currentTime,
-        };
-      }
-      return null;
-    }
-
-    // Check regular visiting hours
-    if (entryTime < VISITING_HOURS.inicio) {
-      return {
-        id: `early-${Date.now()}`,
-        type: 'early_entry',
-        message: `Entrada antes do horário de visitação`,
-        details: `Visitante está entrando às ${entryTime}. Horário de visitação: ${VISITING_HOURS.inicio} - ${VISITING_HOURS.fim}`,
-        timestamp: currentTime,
-      };
-    }
-
-    if (entryTime > VISITING_HOURS.fim) {
-      return {
-        id: `late-entry-${Date.now()}`,
-        type: 'late_exit',
-        message: `Entrada após o horário de visitação`,
-        details: `Visitante está entrando às ${entryTime}. Horário de visitação encerra às ${VISITING_HOURS.fim}`,
-        timestamp: currentTime,
-      };
-    }
-
-    return null;
   }
 
   function dismissAlert(id: string) {
@@ -143,12 +97,7 @@ export function VisitingHoursAlert() {
                 <AlertTitle>{alert.message}</AlertTitle>
                 <AlertDescription>{alert.details}</AlertDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => dismissAlert(alert.id)}
-              >
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => dismissAlert(alert.id)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -159,46 +108,24 @@ export function VisitingHoursAlert() {
   );
 }
 
-// Export function to check entry time from other components
 export function useVisitingHoursCheck() {
-  const checkEntryTime = (entryTime: string, person?: Person): { 
-    isValid: boolean; 
-    warning?: string 
-  } => {
-    // Check if person has special visiting hours
+  const checkEntryTime = (entryTime: string, person?: Person): { isValid: boolean; warning?: string } => {
     if (person?.horarioEspecial && person.horarioEspecialInicio && person.horarioEspecialFim) {
       if (entryTime >= person.horarioEspecialInicio && entryTime <= person.horarioEspecialFim) {
         return { isValid: true };
       }
       if (entryTime < person.horarioEspecialInicio) {
-        return {
-          isValid: false,
-          warning: `Entrada antes do horário especial (${person.horarioEspecialInicio})`,
-        };
+        return { isValid: false, warning: `Entrada antes do horário especial (${person.horarioEspecialInicio})` };
       }
-      return {
-        isValid: false,
-        warning: `Entrada após o horário especial (${person.horarioEspecialFim})`,
-      };
+      return { isValid: false, warning: `Entrada após o horário especial (${person.horarioEspecialFim})` };
     }
-
-    // Check regular visiting hours
     if (entryTime < VISITING_HOURS.inicio) {
-      return {
-        isValid: false,
-        warning: `Entrada antes do horário de visitação (${VISITING_HOURS.inicio})`,
-      };
+      return { isValid: false, warning: `Entrada antes do horário de visitação (${VISITING_HOURS.inicio})` };
     }
-
     if (entryTime > VISITING_HOURS.fim) {
-      return {
-        isValid: false,
-        warning: `Entrada após o horário de visitação (${VISITING_HOURS.fim})`,
-      };
+      return { isValid: false, warning: `Entrada após o horário de visitação (${VISITING_HOURS.fim})` };
     }
-
     return { isValid: true };
   };
-
   return { checkEntryTime };
 }

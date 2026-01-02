@@ -16,46 +16,25 @@ export default function ResidentExits() {
 
   useEffect(() => { loadData(); }, []);
 
-  function loadData() {
-    setExits(getResidentExits().sort((a, b) => 
-      new Date(b.dataSaida + 'T' + b.horaSaida).getTime() - new Date(a.dataSaida + 'T' + a.horaSaida).getTime()
-    ));
+  async function loadData() {
+    const exitsData = await getResidentExits();
+    setExits(exitsData.sort((a, b) => new Date(b.dataSaida + 'T' + b.horaSaida).getTime() - new Date(a.dataSaida + 'T' + a.horaSaida).getTime()));
   }
 
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight">Saída Temporária</h1>
-            <p className="text-muted-foreground">Controle de saídas temporárias dos idosos</p>
-          </div>
-          <Button variant="outline" onClick={() => exportResidentExitsReport(exits)} className="gap-2">
-            <Download className="h-4 w-4" /> Exportar
-          </Button>
+          <div><h1 className="font-display text-3xl font-bold tracking-tight">Saída Temporária</h1><p className="text-muted-foreground">Controle de saídas temporárias dos idosos</p></div>
+          <Button variant="outline" onClick={() => exportResidentExitsReport(exits)} className="gap-2"><Download className="h-4 w-4" /> Exportar</Button>
         </div>
         <ResidentExitForm onSuccess={loadData} />
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DoorOpen className="h-5 w-5 text-primary" /> Histórico <Badge variant="secondary">{exits.length}</Badge>
-            </CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><DoorOpen className="h-5 w-5 text-primary" /> Histórico <Badge variant="secondary">{exits.length}</Badge></CardTitle></CardHeader>
           <CardContent>
             <div className="rounded-lg border overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Idoso</TableHead>
-                    <TableHead>Quarto</TableHead>
-                    <TableHead>Saída</TableHead>
-                    <TableHead>Retorno Prev.</TableHead>
-                    <TableHead>Retorno Real</TableHead>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
+                <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Idoso</TableHead><TableHead>Quarto</TableHead><TableHead>Saída</TableHead><TableHead>Retorno Prev.</TableHead><TableHead>Retorno Real</TableHead><TableHead>Motivo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {exits.map((exit) => (
                     <TableRow key={exit.id}>
@@ -66,15 +45,7 @@ export default function ResidentExits() {
                       <TableCell>{exit.horaRetornoPrevista}</TableCell>
                       <TableCell>{exit.horaRetornoReal || '-'}</TableCell>
                       <TableCell>{exit.motivoSaida}</TableCell>
-                      <TableCell>
-                        {exit.horaRetornoReal ? (
-                          <Badge variant={exit.horaRetornoReal > exit.horaRetornoPrevista ? 'destructive' : 'secondary'}>
-                            {exit.horaRetornoReal > exit.horaRetornoPrevista ? 'Atrasado' : 'No horário'}
-                          </Badge>
-                        ) : (
-                          <Badge variant="default" className="animate-pulse">Fora</Badge>
-                        )}
-                      </TableCell>
+                      <TableCell>{exit.horaRetornoReal ? <Badge variant={exit.horaRetornoReal > exit.horaRetornoPrevista ? 'destructive' : 'secondary'}>{exit.horaRetornoReal > exit.horaRetornoPrevista ? 'Atrasado' : 'No horário'}</Badge> : <Badge variant="default" className="animate-pulse">Fora</Badge>}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

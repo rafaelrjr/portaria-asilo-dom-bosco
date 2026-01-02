@@ -15,21 +15,18 @@ export function ActiveVisitorsList() {
 
   useEffect(() => {
     loadActiveVisits();
-    const interval = setInterval(loadActiveVisits, 30000); // Refresh every 30s
+    const interval = setInterval(loadActiveVisits, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  function loadActiveVisits() {
-    setActiveVisits(getActiveVisits());
+  async function loadActiveVisits() {
+    const visits = await getActiveVisits();
+    setActiveVisits(visits);
   }
 
-  function handleCheckout(visit: Visit) {
-    const updatedVisit = {
-      ...visit,
-      horaSaida: getCurrentTime(),
-      etiquetaDevolvida: true,
-    };
-    saveVisit(updatedVisit);
+  async function handleCheckout(visit: Visit) {
+    const updatedVisit = { ...visit, horaSaida: getCurrentTime(), etiquetaDevolvida: true };
+    await saveVisit(updatedVisit);
     loadActiveVisits();
     toast.success(`${visit.pessoa?.nome} registrou saída`);
   }
@@ -48,9 +45,7 @@ export function ActiveVisitorsList() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum visitante no local no momento
-          </p>
+          <p className="text-center text-muted-foreground py-8">Nenhum visitante no local no momento</p>
         </CardContent>
       </Card>
     );
@@ -63,18 +58,13 @@ export function ActiveVisitorsList() {
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
             Visitantes no Local
-            <Badge variant="secondary" className="ml-2">
-              {activeVisits.length}
-            </Badge>
+            <Badge variant="secondary" className="ml-2">{activeVisits.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {activeVisits.map((visit) => (
-              <div
-                key={visit.id}
-                className="flex items-center justify-between rounded-lg border bg-muted/30 p-4 transition-colors hover:bg-muted/50"
-              >
+              <div key={visit.id} className="flex items-center justify-between rounded-lg border bg-muted/30 p-4 transition-colors hover:bg-muted/50">
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                     <User className="h-5 w-5 text-primary" />
@@ -85,33 +75,16 @@ export function ActiveVisitorsList() {
                       <span>Entrada: {visit.horaEntrada}</span>
                       <span>•</span>
                       <span>{getVisitPurposeLabel(visit.proposito)}</span>
-                      {visit.idoso && (
-                        <>
-                          <span>•</span>
-                          <span>{visit.idoso.nome}</span>
-                        </>
-                      )}
+                      {visit.idoso && (<><span>•</span><span>{visit.idoso.nome}</span></>)}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePrintLabel(visit)}
-                    className="gap-1"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Etiqueta
+                  <Button variant="outline" size="sm" onClick={() => handlePrintLabel(visit)} className="gap-1">
+                    <Printer className="h-4 w-4" />Etiqueta
                   </Button>
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleCheckout(visit)}
-                    className="gap-1"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Registrar Saída
+                  <Button variant="success" size="sm" onClick={() => handleCheckout(visit)} className="gap-1">
+                    <LogOut className="h-4 w-4" />Registrar Saída
                   </Button>
                 </div>
               </div>
@@ -119,10 +92,7 @@ export function ActiveVisitorsList() {
           </div>
         </CardContent>
       </Card>
-
-      {labelVisit && (
-        <VisitorLabel visit={labelVisit} onClose={() => setLabelVisit(null)} />
-      )}
+      {labelVisit && <VisitorLabel visit={labelVisit} onClose={() => setLabelVisit(null)} />}
     </>
   );
 }
