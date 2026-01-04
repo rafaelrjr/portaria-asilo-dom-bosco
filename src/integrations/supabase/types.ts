@@ -14,16 +14,420 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      institution_settings: {
+        Row: {
+          cnpj: string | null
+          email: string | null
+          endereco: string | null
+          horario_visita_fim: string | null
+          horario_visita_inicio: string | null
+          id: string
+          logo: string | null
+          nome: string | null
+          telefone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          email?: string | null
+          endereco?: string | null
+          horario_visita_fim?: string | null
+          horario_visita_inicio?: string | null
+          id?: string
+          logo?: string | null
+          nome?: string | null
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          email?: string | null
+          endereco?: string | null
+          horario_visita_fim?: string | null
+          horario_visita_inicio?: string | null
+          id?: string
+          logo?: string | null
+          nome?: string | null
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      persons: {
+        Row: {
+          cpf: string
+          created_at: string | null
+          dias_permitidos: string[] | null
+          foto: string | null
+          horario_especial: boolean | null
+          horario_especial_fim: string | null
+          horario_especial_inicio: string | null
+          id: string
+          idoso_vinculado: string | null
+          nome: string
+          observacoes: string | null
+          parentesco: string | null
+          rg: string | null
+          telefone: string | null
+          tipo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cpf: string
+          created_at?: string | null
+          dias_permitidos?: string[] | null
+          foto?: string | null
+          horario_especial?: boolean | null
+          horario_especial_fim?: string | null
+          horario_especial_inicio?: string | null
+          id?: string
+          idoso_vinculado?: string | null
+          nome: string
+          observacoes?: string | null
+          parentesco?: string | null
+          rg?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cpf?: string
+          created_at?: string | null
+          dias_permitidos?: string[] | null
+          foto?: string | null
+          horario_especial?: boolean | null
+          horario_especial_fim?: string | null
+          horario_especial_inicio?: string | null
+          id?: string
+          idoso_vinculado?: string | null
+          nome?: string
+          observacoes?: string | null
+          parentesco?: string | null
+          rg?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "persons_idoso_vinculado_fkey"
+            columns: ["idoso_vinculado"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          email: string | null
+          id: string
+          nome: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nome: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nome?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      resident_exits: {
+        Row: {
+          acompanhante: string | null
+          created_at: string | null
+          data_saida: string
+          hora_retorno_prevista: string
+          hora_retorno_real: string | null
+          hora_saida: string
+          id: string
+          motivo_saida: string
+          observacoes: string | null
+          resident_id: string
+        }
+        Insert: {
+          acompanhante?: string | null
+          created_at?: string | null
+          data_saida: string
+          hora_retorno_prevista: string
+          hora_retorno_real?: string | null
+          hora_saida: string
+          id?: string
+          motivo_saida: string
+          observacoes?: string | null
+          resident_id: string
+        }
+        Update: {
+          acompanhante?: string | null
+          created_at?: string | null
+          data_saida?: string
+          hora_retorno_prevista?: string
+          hora_retorno_real?: string | null
+          hora_saida?: string
+          id?: string
+          motivo_saida?: string
+          observacoes?: string | null
+          resident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resident_exits_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      residents: {
+        Row: {
+          ativo: boolean | null
+          autorizado_saida_temporaria: boolean | null
+          created_at: string | null
+          dias_saida_permitidos: string[] | null
+          foto: string | null
+          horario_retorno_permitido: string | null
+          horario_saida_permitido: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          quarto: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          autorizado_saida_temporaria?: boolean | null
+          created_at?: string | null
+          dias_saida_permitidos?: string[] | null
+          foto?: string | null
+          horario_retorno_permitido?: string | null
+          horario_saida_permitido?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          quarto: string
+        }
+        Update: {
+          ativo?: boolean | null
+          autorizado_saida_temporaria?: boolean | null
+          created_at?: string | null
+          dias_saida_permitidos?: string[] | null
+          foto?: string | null
+          horario_retorno_permitido?: string | null
+          horario_saida_permitido?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          quarto?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vehicle_trips: {
+        Row: {
+          created_at: string | null
+          data_saida: string
+          destino: string | null
+          hora_chegada: string | null
+          hora_saida: string
+          id: string
+          km_chegada: number | null
+          km_saida: number
+          motorista: string
+          observacoes: string | null
+          placa: string
+          vehicle_id: string | null
+          veiculo: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_saida: string
+          destino?: string | null
+          hora_chegada?: string | null
+          hora_saida: string
+          id?: string
+          km_chegada?: number | null
+          km_saida: number
+          motorista: string
+          observacoes?: string | null
+          placa: string
+          vehicle_id?: string | null
+          veiculo: string
+        }
+        Update: {
+          created_at?: string | null
+          data_saida?: string
+          destino?: string | null
+          hora_chegada?: string | null
+          hora_saida?: string
+          id?: string
+          km_chegada?: number | null
+          km_saida?: number
+          motorista?: string
+          observacoes?: string | null
+          placa?: string
+          vehicle_id?: string | null
+          veiculo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_trips_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          ano: string | null
+          ativo: boolean | null
+          cor: string | null
+          created_at: string | null
+          id: string
+          km_atual: number | null
+          km_inicial: number | null
+          marca: string
+          modelo: string
+          placa: string
+        }
+        Insert: {
+          ano?: string | null
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string | null
+          id?: string
+          km_atual?: number | null
+          km_inicial?: number | null
+          marca: string
+          modelo: string
+          placa: string
+        }
+        Update: {
+          ano?: string | null
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string | null
+          id?: string
+          km_atual?: number | null
+          km_inicial?: number | null
+          marca?: string
+          modelo?: string
+          placa?: string
+        }
+        Relationships: []
+      }
+      visits: {
+        Row: {
+          created_at: string | null
+          data_entrada: string
+          descricao_acao_social: string | null
+          etiqueta_devolvida: boolean | null
+          etiqueta_emitida: boolean | null
+          hora_entrada: string
+          hora_saida: string | null
+          id: string
+          idoso_id: string | null
+          observacoes: string | null
+          pessoa_departamento: string | null
+          pessoa_id: string
+          proposito: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_entrada: string
+          descricao_acao_social?: string | null
+          etiqueta_devolvida?: boolean | null
+          etiqueta_emitida?: boolean | null
+          hora_entrada: string
+          hora_saida?: string | null
+          id?: string
+          idoso_id?: string | null
+          observacoes?: string | null
+          pessoa_departamento?: string | null
+          pessoa_id: string
+          proposito?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_entrada?: string
+          descricao_acao_social?: string | null
+          etiqueta_devolvida?: boolean | null
+          etiqueta_emitida?: boolean | null
+          hora_entrada?: string
+          hora_saida?: string | null
+          id?: string
+          idoso_id?: string | null
+          observacoes?: string | null
+          pessoa_departamento?: string | null
+          pessoa_id?: string
+          proposito?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_idoso_id_fkey"
+            columns: ["idoso_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_pessoa_id_fkey"
+            columns: ["pessoa_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "operador" | "visualizador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +554,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "operador", "visualizador"],
+    },
   },
 } as const
