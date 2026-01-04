@@ -79,20 +79,25 @@ export function exportResidentExitsReport(exits: ResidentExit[], filename = 'rel
 }
 
 // Export Persons Report
-export function exportPersonsReport(persons: Person[], filename = 'cadastro_visitantes'): void {
-  const data = persons.map(p => ({
-    'Nome': p.nome,
-    'CPF': p.cpf,
-    'RG': p.rg || '',
-    'Telefone': p.telefone,
-    'Tipo': getVisitorTypeLabel(p.tipo),
-    'Parentesco': p.parentesco || '',
-    'Horário Especial': p.horarioEspecial ? 'Sim' : 'Não',
-    'Horário Início': p.horarioEspecialInicio || '',
-    'Horário Fim': p.horarioEspecialFim || '',
-    'Observações': p.observacoes || '',
-    'Cadastrado em': formatDate(p.createdAt.split('T')[0]),
-  }));
+export function exportPersonsReport(persons: Person[], residents: Resident[], filename = 'cadastro_visitantes'): void {
+  const data = persons.map(p => {
+    const idosoVinculado = residents.find(r => r.id === p.idosoVinculado);
+    return {
+      'Nome': p.nome,
+      'CPF': p.cpf,
+      'RG': p.rg || '',
+      'Telefone': p.telefone,
+      'Tipo': getVisitorTypeLabel(p.tipo),
+      'Parentesco': p.parentesco || '',
+      'Idoso Vinculado': idosoVinculado?.nome || '-',
+      'Quarto do Idoso': idosoVinculado?.quarto || '-',
+      'Horário Especial': p.horarioEspecial ? 'Sim' : 'Não',
+      'Horário Início': p.horarioEspecialInicio || '',
+      'Horário Fim': p.horarioEspecialFim || '',
+      'Observações': p.observacoes || '',
+      'Cadastrado em': formatDate(p.createdAt.split('T')[0]),
+    };
+  });
   exportToCSV(data, filename);
 }
 

@@ -134,7 +134,7 @@ export default function Backup() {
   }
 
   async function handleExportPersons() {
-    let persons = await getPersons();
+    let [persons, residents] = await Promise.all([getPersons(), getResidents()]);
     if (personType !== 'all') {
       persons = persons.filter(p => p.tipo === personType);
     }
@@ -143,11 +143,11 @@ export default function Backup() {
       return;
     }
     toast.info(`Exportando ${persons.length} registros...`);
-    exportPersonsReport(persons);
+    exportPersonsReport(persons, residents);
   }
 
   async function handleExportPersonsPDF() {
-    let [persons, settings] = await Promise.all([getPersons(), getInstitutionSettings()]);
+    let [persons, residents, settings] = await Promise.all([getPersons(), getResidents(), getInstitutionSettings()]);
     if (personType !== 'all') {
       persons = persons.filter(p => p.tipo === personType);
     }
@@ -156,7 +156,7 @@ export default function Backup() {
       return;
     }
     toast.info(`Exportando ${persons.length} registros...`);
-    generatePersonsReportPDF(persons, settings);
+    generatePersonsReportPDF(persons, residents, settings);
     toast.success('Relatório PDF gerado com sucesso!');
   }
 

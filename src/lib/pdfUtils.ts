@@ -160,8 +160,8 @@ export function generateResidentExitsReportPDF(exits: ResidentExit[], settings?:
   doc.save(`relatorio_saidas_idosos_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
-export function generatePersonsReportPDF(persons: Person[], settings?: InstitutionSettings | null) {
-  const doc = new jsPDF();
+export function generatePersonsReportPDF(persons: Person[], residents: Resident[], settings?: InstitutionSettings | null) {
+  const doc = new jsPDF('landscape');
   const startY = addHeader(doc, 'Cadastro de Visitantes', settings);
 
   const tipoLabels: Record<string, string> = {
@@ -174,18 +174,23 @@ export function generatePersonsReportPDF(persons: Person[], settings?: Instituti
     outro: 'Outro',
   };
 
-  const tableData = persons.map((p) => [
-    p.nome,
-    p.cpf,
-    p.rg,
-    p.telefone,
-    tipoLabels[p.tipo] || p.tipo,
-    p.parentesco || '-',
-  ]);
+  const tableData = persons.map((p) => {
+    const idosoVinculado = residents.find(r => r.id === p.idosoVinculado);
+    return [
+      p.nome,
+      p.cpf,
+      p.rg || '-',
+      p.telefone,
+      tipoLabels[p.tipo] || p.tipo,
+      p.parentesco || '-',
+      idosoVinculado?.nome || '-',
+      idosoVinculado?.quarto || '-',
+    ];
+  });
 
   autoTable(doc, {
     startY,
-    head: [['Nome', 'CPF', 'RG', 'Telefone', 'Tipo', 'Parentesco']],
+    head: [['Nome', 'CPF', 'RG', 'Telefone', 'Tipo', 'Parentesco', 'Idoso Vinculado', 'Quarto']],
     body: tableData,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [59, 130, 246] },
