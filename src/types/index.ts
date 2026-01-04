@@ -28,14 +28,17 @@ export interface User {
 }
 
 export interface InstitutionSettings {
+  id?: string;
   nome: string;
   cnpj: string;
   endereco: string;
   telefone: string;
   email: string;
   logo?: string; // Base64
-  responsavel: string;
+  responsavel?: string;
   observacoes?: string;
+  horarioVisitaInicio?: string;
+  horarioVisitaFim?: string;
 }
 
 export interface Vehicle {
