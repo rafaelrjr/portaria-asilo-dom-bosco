@@ -12,7 +12,7 @@ import { formatDate, getCurrentTime, getVisitPurposeLabel } from '@/lib/utils';
 import { Visit, Resident } from '@/types';
 import { History as HistoryIcon, Search, LogOut, Printer, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import { VisitorLabel } from '@/components/visitors/VisitorLabel';
+import { printVisitorLabelDirect } from '@/components/visitors/VisitorLabel';
 
 export default function History() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -22,7 +22,6 @@ export default function History() {
   const [endDate, setEndDate] = useState('');
   const [selectedResident, setSelectedResident] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [labelVisit, setLabelVisit] = useState<Visit | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -30,7 +29,7 @@ export default function History() {
     const visitsData = await getVisits();
     setVisits(visitsData.sort((a, b) => new Date(b.dataEntrada + 'T' + b.horaEntrada).getTime() - new Date(a.dataEntrada + 'T' + a.horaEntrada).getTime()));
     const residentsData = await getResidents();
-    setResidents(residentsData);
+    setResidents(residentsData.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
   }
 
   async function handleCheckout(visit: Visit) {
@@ -38,6 +37,10 @@ export default function History() {
     await saveVisit(updatedVisit);
     loadData();
     toast.success(`${visit.pessoa?.nome} registrou saída`);
+  }
+
+  async function handlePrintLabel(visit: Visit) {
+    await printVisitorLabelDirect(visit);
   }
 
   function clearFilters() { setSearchQuery(''); setStartDate(''); setEndDate(''); setSelectedResident(''); setStatusFilter('all'); }
@@ -88,7 +91,7 @@ export default function History() {
                         <TableCell>{visit.horaSaida ? <Badge variant="secondary">Finalizada</Badge> : <Badge variant="default" className="animate-pulse-soft">No local</Badge>}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => setLabelVisit(visit)}><Printer className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handlePrintLabel(visit)}><Printer className="h-4 w-4" /></Button>
                             {!visit.horaSaida && <Button variant="ghost" size="icon" onClick={() => handleCheckout(visit)}><LogOut className="h-4 w-4 text-success" /></Button>}
                           </div>
                         </TableCell>
@@ -101,7 +104,6 @@ export default function History() {
           </CardContent>
         </Card>
       </div>
-      {labelVisit && <VisitorLabel visit={labelVisit} onClose={() => setLabelVisit(null)} />}
     </Layout>
   );
 }

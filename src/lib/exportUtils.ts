@@ -1,5 +1,7 @@
-import { Visit, VehicleTrip, ResidentExit, Person, Resident } from '@/types';
+import { Visit, VehicleTrip, ResidentExit, Person, Resident, InstitutionSettings } from '@/types';
 import { formatDate, getVisitorTypeLabel, getVisitPurposeLabel } from './utils';
+import { getInstitutionSettings } from './storage';
+import * as XLSX from 'xlsx';
 
 // Export to CSV
 export function exportToCSV(data: Record<string, unknown>[], filename: string): void {
@@ -12,7 +14,6 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string): 
       headers.map(header => {
         const value = row[header];
         const stringValue = value === null || value === undefined ? '' : String(value);
-        // Escape quotes and wrap in quotes if contains comma
         if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
           return `"${stringValue.replace(/"/g, '""')}"`;
         }
@@ -24,7 +25,97 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string): 
   downloadFile(csvContent, `${filename}.csv`, 'text/csv;charset=utf-8;');
 }
 
-// Export Visits Report
+// Generic Excel export with header
+async function createExcelWithHeader(data: Record<string, unknown>[], title: string): Promise<XLSX.WorkBook> {
+  const settings = await getInstitutionSettings();
+  const wb = XLSX.utils.book_new();
+  
+  const headerRows: (string | number)[][] = [
+    [settings?.nome || 'Instituição'],
+    [settings?.cnpj ? `CNPJ: ${settings.cnpj}` : ''],
+    [settings?.endereco || ''],
+    [settings?.telefone ? `Tel: ${settings.telefone}${settings?.email ? ` | Email: ${settings.email}` : ''}` : ''],
+    [],
+    [title.toUpperCase()],
+    [`Emitido em: ${new Date().toLocaleString('pt-BR')}`],
+    [],
+  ];
+  
+  const ws = XLSX.utils.aoa_to_sheet(headerRows);
+  XLSX.utils.sheet_add_json(ws, data, { origin: 'A9' });
+  XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+  
+  return wb;
+}
+
+// Export Visits Report to Excel
+export async function exportVisitsReportExcel(visits: Visit[]): Promise<void> {
+  const data = visits.map(v => ({
+    'Data': formatDate(v.dataEntrada),
+    'Hora Entrada': v.horaEntrada,
+    'Hora Saída': v.horaSaida || 'Em andamento',
+    'Visitante': v.pessoa?.nome || 'N/A',
+    'CPF': v.pessoa?.cpf || 'N/A',
+    'Tipo': v.pessoa ? getVisitorTypeLabel(v.pessoa.tipo) : 'N/A',
+    'Propósito': getVisitPurposeLabel(v.proposito),
+    'Idoso Visitado': v.idoso?.nome || 'N/A',
+    'Observações': v.observacoes || '',
+  }));
+  const wb = await createExcelWithHeader(data, 'Relatório de Visitas');
+  XLSX.writeFile(wb, `relatorio_visitas_${getCurrentDateForFilename()}.xlsx`);
+}
+
+// Export Residents Report to Excel
+export async function exportResidentsReportExcel(residents: Resident[]): Promise<void> {
+  const data = residents.map(r => ({
+    'Nome': r.nome,
+    'Quarto': r.quarto || '',
+    'Status': r.ativo ? 'Ativo' : 'Inativo',
+    'Saída Temporária': r.autorizadoSaidaTemporaria ? 'Autorizado' : 'Não autorizado',
+    'Observações': r.observacoes || '',
+  }));
+  const wb = await createExcelWithHeader(data, 'Cadastro de Idosos');
+  XLSX.writeFile(wb, `cadastro_idosos_${getCurrentDateForFilename()}.xlsx`);
+}
+
+// Export Vehicle Trips to Excel
+export async function exportVehicleTripsReportExcel(trips: VehicleTrip[]): Promise<void> {
+  const data = trips.map(t => ({
+    'Data': formatDate(t.dataSaida),
+    'Veículo': t.veiculo,
+    'Placa': t.placa,
+    'Motorista': t.motorista,
+    'Hora Saída': t.horaSaida,
+    'KM Saída': t.kmSaida,
+    'Hora Chegada': t.horaChegada || 'Em andamento',
+    'KM Chegada': t.kmChegada || 'N/A',
+    'KM Percorrido': t.kmChegada ? t.kmChegada - t.kmSaida : 'N/A',
+  }));
+  const wb = await createExcelWithHeader(data, 'Relatório de Veículos');
+  XLSX.writeFile(wb, `relatorio_veiculos_${getCurrentDateForFilename()}.xlsx`);
+}
+
+// Export Resident Exits to Excel
+export async function exportResidentExitsReportExcel(exits: ResidentExit[]): Promise<void> {
+  const data = exits.map(e => ({
+    'Data': formatDate(e.dataSaida),
+    'Idoso': e.resident?.nome || 'N/A',
+    'Hora Saída': e.horaSaida,
+    'Retorno Previsto': e.horaRetornoPrevista,
+    'Retorno Real': e.horaRetornoReal || 'Não retornou',
+    'Status': e.horaRetornoReal ? (e.horaRetornoReal > e.horaRetornoPrevista ? 'Atrasado' : 'No horário') : 'Pendente',
+    'Motivo': e.motivoSaida,
+    'Acompanhante': e.acompanhante || '',
+  }));
+  const wb = await createExcelWithHeader(data, 'Relatório de Saídas Temporárias');
+  XLSX.writeFile(wb, `relatorio_saidas_${getCurrentDateForFilename()}.xlsx`);
+}
+
+function getCurrentDateForFilename(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+// Export Visits Report (CSV)
 export function exportVisitsReport(visits: Visit[], filename = 'relatorio_visitas'): void {
   const data = visits.map(v => ({
     'Data': formatDate(v.dataEntrada),
@@ -41,7 +132,7 @@ export function exportVisitsReport(visits: Visit[], filename = 'relatorio_visita
   exportToCSV(data, filename);
 }
 
-// Export Vehicle Trips Report
+// Export Vehicle Trips Report (CSV)
 export function exportVehicleTripsReport(trips: VehicleTrip[], filename = 'relatorio_veiculos'): void {
   const data = trips.map(t => ({
     'Data': formatDate(t.dataSaida),
@@ -59,7 +150,7 @@ export function exportVehicleTripsReport(trips: VehicleTrip[], filename = 'relat
   exportToCSV(data, filename);
 }
 
-// Export Resident Exits Report
+// Export Resident Exits Report (CSV)
 export function exportResidentExitsReport(exits: ResidentExit[], filename = 'relatorio_saidas_idosos'): void {
   const data = exits.map(e => ({
     'Data': formatDate(e.dataSaida),
@@ -68,9 +159,7 @@ export function exportResidentExitsReport(exits: ResidentExit[], filename = 'rel
     'Hora Saída': e.horaSaida,
     'Retorno Previsto': e.horaRetornoPrevista,
     'Retorno Real': e.horaRetornoReal || 'Não retornou',
-    'Status': e.horaRetornoReal ? 
-      (e.horaRetornoReal > e.horaRetornoPrevista ? 'Atrasado' : 'No horário') : 
-      'Pendente',
+    'Status': e.horaRetornoReal ? (e.horaRetornoReal > e.horaRetornoPrevista ? 'Atrasado' : 'No horário') : 'Pendente',
     'Motivo': e.motivoSaida,
     'Acompanhante': e.acompanhante || '',
     'Observações': e.observacoes || '',
@@ -78,7 +167,7 @@ export function exportResidentExitsReport(exits: ResidentExit[], filename = 'rel
   exportToCSV(data, filename);
 }
 
-// Export Persons Report
+// Export Persons Report (CSV)
 export function exportPersonsReport(persons: Person[], residents: Resident[], filename = 'cadastro_visitantes'): void {
   const data = persons.map(p => {
     const idosoVinculado = residents.find(r => r.id === p.idosoVinculado);
@@ -101,7 +190,7 @@ export function exportPersonsReport(persons: Person[], residents: Resident[], fi
   exportToCSV(data, filename);
 }
 
-// Export Residents Report
+// Export Residents Report (CSV)
 export function exportResidentsReport(residents: Resident[], filename = 'cadastro_idosos'): void {
   const data = residents.map(r => ({
     'Nome': r.nome,

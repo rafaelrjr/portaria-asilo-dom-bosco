@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Resident, DayOfWeek, DAYS_OF_WEEK } from '@/types';
-import { saveResident, importResidentsFromJSON, importResidentsFromCSV } from '@/lib/storage';
+import { saveResident } from '@/lib/storage';
 import { generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Home, Save, Camera, Trash2, Upload, FileJson, FileSpreadsheet } from 'lucide-react';
+import { Home, Save, Camera, Trash2, Upload } from 'lucide-react';
 import { WebcamCapture } from '@/components/camera/WebcamCapture';
 
 const residentSchema = z.object({
@@ -32,16 +32,14 @@ interface ResidentFormProps {
   resident?: Resident;
   onSuccess?: (resident: Resident) => void;
   onCancel?: () => void;
-  onImportSuccess?: () => void;
 }
 
-export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }: ResidentFormProps) {
+export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProps) {
   const isEditing = !!resident;
   const [showCamera, setShowCamera] = useState(false);
   const [foto, setFoto] = useState<string | undefined>(resident?.foto);
   const [diasSaida, setDiasSaida] = useState<DayOfWeek[]>(resident?.diasSaidaPermitidos || []);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -91,38 +89,6 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
     );
   }
 
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const content = event.target?.result as string;
-      let result: { success: number; errors: number };
-
-      if (file.name.endsWith('.json')) {
-        result = await importResidentsFromJSON(content);
-      } else if (file.name.endsWith('.csv')) {
-        result = await importResidentsFromCSV(content);
-      } else {
-        toast.error('Formato não suportado. Use JSON ou CSV.');
-        return;
-      }
-
-      if (result.success > 0) {
-        toast.success(`${result.success} idoso(s) importado(s) com sucesso!`);
-        onImportSuccess?.();
-      }
-      if (result.errors > 0) {
-        toast.warning(`${result.errors} registro(s) com erro`);
-      }
-    };
-    reader.readAsText(file);
-    
-    if (importInputRef.current) {
-      importInputRef.current.value = '';
-    }
-  }
 
   async function onSubmit(data: ResidentFormData) {
     const newResident: Resident = {
@@ -154,32 +120,11 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
   return (
     <>
       <Card className="animate-slide-up">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
             {isEditing ? 'Editar Idoso' : 'Cadastrar Novo Idoso'}
           </CardTitle>
-          {!isEditing && (
-            <div className="flex gap-2">
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".json,.csv"
-                onChange={handleImportFile}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => importInputRef.current?.click()}
-                className="gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                Importar
-              </Button>
-            </div>
-          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -359,23 +304,6 @@ export function ResidentForm({ resident, onSuccess, onCancel, onImportSuccess }:
               </Button>
             </div>
           </form>
-
-          {/* Instruções de importação */}
-          {!isEditing && (
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-medium mb-2 flex items-center gap-2">
-                <FileJson className="h-4 w-4" />
-                Importar Dados
-              </h4>
-              <p className="text-sm text-muted-foreground mb-2">
-                Formatos suportados: JSON e CSV
-              </p>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p><strong>JSON:</strong> Array com objetos contendo "nome" e opcionalmente "quarto", "observacoes"</p>
-                <p><strong>CSV:</strong> Primeira linha com cabeçalhos: nome, quarto, observacoes</p>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 

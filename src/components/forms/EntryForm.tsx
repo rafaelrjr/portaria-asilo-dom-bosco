@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { DoorOpen, Search, User, Printer } from 'lucide-react';
 import { PersonForm } from './PersonForm';
-import { VisitorLabel } from '@/components/visitors/VisitorLabel';
+import { printVisitorLabelDirect } from '@/components/visitors/VisitorLabel';
 
 const entrySchema = z.object({
   proposito: z.string(),
@@ -32,7 +32,7 @@ export function EntryForm() {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showNewPersonForm, setShowNewPersonForm] = useState(false);
   const [residents, setResidents] = useState<Resident[]>([]);
-  const [createdVisit, setCreatedVisit] = useState<Visit | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
@@ -44,7 +44,8 @@ export function EntryForm() {
   useEffect(() => {
     async function load() {
       const res = await getResidents();
-      setResidents(res.filter(r => r.ativo));
+      const filtered = res.filter(r => r.ativo);
+      setResidents(filtered.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
     }
     load();
   }, []);
@@ -101,21 +102,25 @@ export function EntryForm() {
       pessoaDepartamento: data.pessoaDepartamento,
       dataEntrada: getCurrentDate(),
       horaEntrada: getCurrentTime(),
-      etiquetaEmitida: false,
+      etiquetaEmitida: true,
       etiquetaDevolvida: false,
       observacoes: data.observacoes,
       createdAt: new Date().toISOString(),
     };
+    
     await saveVisit(visit);
-    setCreatedVisit(visit);
     toast.success('Entrada registrada com sucesso!');
-  }
-
-  function handleCloseLabelAndReset() {
-    setCreatedVisit(null);
+    
+    // Print label directly
+    setIsPrinting(true);
+    await printVisitorLabelDirect(visit);
+    setIsPrinting(false);
+    
+    // Reset form
     setSelectedPerson(null);
     reset();
   }
+
 
   if (showNewPersonForm) {
     return <PersonForm onSuccess={handleNewPersonCreated} onCancel={() => setShowNewPersonForm(false)} />;
@@ -230,14 +235,13 @@ export function EntryForm() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button type="submit" size="lg" className="gap-2"><Printer className="h-5 w-5" />Registrar Entrada e Imprimir Etiqueta</Button>
+                  <Button type="submit" size="lg" disabled={isPrinting} className="gap-2"><Printer className="h-5 w-5" />{isPrinting ? 'Imprimindo...' : 'Registrar Entrada e Imprimir Etiqueta'}</Button>
                 </div>
               </form>
             )}
           </div>
         </CardContent>
       </Card>
-      {createdVisit && <VisitorLabel visit={createdVisit} onClose={handleCloseLabelAndReset} />}
     </>
   );
 }

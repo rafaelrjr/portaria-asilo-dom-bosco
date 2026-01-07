@@ -58,7 +58,8 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   useEffect(() => {
     async function load() {
       const res = await getResidents();
-      setResidents(res.filter(r => r.ativo));
+      const filtered = res.filter(r => r.ativo);
+      setResidents(filtered.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
     }
     load();
   }, []);
