@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Vehicle } from '@/types';
-import { saveVehicle } from '@/lib/storage';
+import { saveVehicle } from '@/lib/supabaseDb';
 import { generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

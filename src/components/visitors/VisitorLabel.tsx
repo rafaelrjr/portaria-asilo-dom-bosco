@@ -107,7 +107,9 @@ export async function printVisitorLabelDirect(visit: Visit): Promise<void> {
             <p class="name">${visit.pessoa?.nome || ''}</p>
             <p class="info"><span>CPF:</span> ${visit.pessoa?.cpf || ''}</p>
             <p class="info"><span>Motivo:</span> ${getVisitPurposeLabel(visit.proposito)}</p>
-            ${visit.idoso ? `<p class="info"><span>Visitando:</span> ${visit.idoso.nome}</p>` : ''}
+            ${visit.proposito === 'reuniao' && visit.pessoaDepartamento 
+              ? `<p class="info"><span>Pessoa/Dept:</span> ${visit.pessoaDepartamento}</p>` 
+              : visit.idoso ? `<p class="info"><span>Visitando:</span> ${visit.idoso.nome}</p>` : ''}
           </div>
 
           <div class="footer">

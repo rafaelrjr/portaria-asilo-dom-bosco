@@ -507,6 +507,28 @@ export async function deleteVehicle(id: string): Promise<void> {
   });
 }
 
+export async function getActiveVehicles(): Promise<Vehicle[]> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('*')
+    .eq('ativo', true)
+    .order('marca');
+
+  if (error) throw error;
+  return (data || []).map(row => ({
+    id: row.id,
+    marca: row.marca,
+    modelo: row.modelo,
+    ano: row.ano,
+    placa: row.placa,
+    cor: row.cor,
+    kmInicial: row.km_inicial ?? 0,
+    kmAtual: row.km_atual,
+    ativo: row.ativo ?? true,
+    createdAt: row.created_at,
+  }));
+}
+
 // ==================== VEHICLE TRIPS ====================
 export async function getVehicleTrips(): Promise<VehicleTrip[]> {
   const { data, error } = await supabase
@@ -530,6 +552,46 @@ export async function getVehicleTrips(): Promise<VehicleTrip[]> {
     observacoes: row.observacoes,
     createdAt: row.created_at,
   }));
+}
+
+export async function getActiveVehicleTrips(): Promise<VehicleTrip[]> {
+  const { data, error } = await supabase
+    .from('vehicle_trips')
+    .select('*')
+    .is('hora_chegada', null)
+    .order('data_saida', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(row => ({
+    id: row.id,
+    vehicleId: row.vehicle_id,
+    veiculo: row.veiculo,
+    placa: row.placa,
+    motorista: row.motorista,
+    dataSaida: row.data_saida,
+    horaSaida: row.hora_saida,
+    kmSaida: row.km_saida,
+    horaChegada: row.hora_chegada,
+    kmChegada: row.km_chegada,
+    destino: row.destino,
+    observacoes: row.observacoes,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function getLastKmChegadaForVehicle(vehicleId: string): Promise<number | undefined> {
+  const { data, error } = await supabase
+    .from('vehicle_trips')
+    .select('km_chegada')
+    .eq('vehicle_id', vehicleId)
+    .not('km_chegada', 'is', null)
+    .order('data_saida', { ascending: false })
+    .order('hora_saida', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.km_chegada ?? undefined;
 }
 
 export async function saveVehicleTrip(trip: VehicleTrip): Promise<void> {
