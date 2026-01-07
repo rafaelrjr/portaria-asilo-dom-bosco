@@ -12,11 +12,11 @@ import { exportVehicleTripsReport } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/utils';
 import { VehicleTrip, Vehicle } from '@/types';
 import { Truck, Download, Car, Trash2, Edit } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { toast } from 'sonner';
 
 export default function Fleet() {
-  const { canEdit } = useAuth();
+  const { canEdit } = useSupabaseAuth();
   const [trips, setTrips] = useState<VehicleTrip[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | undefined>();

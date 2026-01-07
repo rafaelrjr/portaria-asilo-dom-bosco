@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Layout } from '@/components/layout/Layout';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { 
   getInstitutionSettings, 
   saveInstitutionSettings,
@@ -70,7 +70,7 @@ const userSchema = z.object({
 type UserFormData = z.infer<typeof userSchema>;
 
 export default function Settings() {
-  const { user: currentUser, canManage } = useAuth();
+  const { user: currentUser, canManage } = useSupabaseAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [logo, setLogo] = useState<string | undefined>(undefined);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);

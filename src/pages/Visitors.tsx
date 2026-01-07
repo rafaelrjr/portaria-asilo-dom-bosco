@@ -24,7 +24,7 @@ export default function Visitors() {
 
   async function loadPersons() {
     const data = await getPersons();
-    setPersons(data);
+    setPersons(data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
     const cache = new Map<string, Resident | undefined>();
     for (const p of data) {
       if (p.idosoVinculado) {

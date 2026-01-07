@@ -15,10 +15,12 @@ export function WebcamCapture({ open, onClose, onCapture }: WebcamCaptureProps) 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
       setError(null);
+      setIsVideoReady(false);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: 640, height: 480 },
       });
@@ -37,14 +39,15 @@ export function WebcamCapture({ open, onClose, onCapture }: WebcamCaptureProps) 
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    setIsVideoReady(false);
   }, [stream]);
 
   const handleCapture = useCallback(() => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && isVideoReady) {
       const canvas = canvasRef.current;
       const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0);
@@ -53,7 +56,7 @@ export function WebcamCapture({ open, onClose, onCapture }: WebcamCaptureProps) 
         stopCamera();
       }
     }
-  }, [stopCamera]);
+  }, [stopCamera, isVideoReady]);
 
   const handleRetake = useCallback(() => {
     setCapturedImage(null);
@@ -128,15 +131,21 @@ export function WebcamCapture({ open, onClose, onCapture }: WebcamCaptureProps) 
                   autoPlay
                   playsInline
                   muted
+                  onLoadedMetadata={() => setIsVideoReady(true)}
                   className="h-full w-full object-cover"
                 />
+                {!isVideoReady && stream && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                    <p className="text-muted-foreground">Carregando câmera...</p>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleClose} variant="outline" className="flex-1 gap-2">
                   <X className="h-4 w-4" />
                   Cancelar
                 </Button>
-                <Button onClick={handleCapture} className="flex-1 gap-2">
+                <Button onClick={handleCapture} disabled={!isVideoReady} className="flex-1 gap-2">
                   <Camera className="h-4 w-4" />
                   Capturar
                 </Button>

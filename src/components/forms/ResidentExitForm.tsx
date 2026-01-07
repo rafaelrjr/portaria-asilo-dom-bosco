@@ -20,7 +20,7 @@ const exitSchema = z.object({
   dataSaida: z.string(),
   horaSaida: z.string(),
   horaRetornoPrevista: z.string(),
-  motivoSaida: z.string().min(3, 'Informe o motivo'),
+  motivoSaida: z.string().optional(),
   acompanhante: z.string().optional(),
   observacoes: z.string().optional(),
 });
@@ -63,7 +63,8 @@ export function ResidentExitForm({ onSuccess }: ResidentExitFormProps) {
 
   async function loadData() {
     const res = await getResidents();
-    setResidents(res.filter(r => r.ativo && r.autorizadoSaidaTemporaria));
+    const filtered = res.filter(r => r.ativo && r.autorizadoSaidaTemporaria);
+    setResidents(filtered.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
     const exits = await getActiveResidentExits();
     setActiveExits(exits);
   }
@@ -75,7 +76,7 @@ export function ResidentExitForm({ onSuccess }: ResidentExitFormProps) {
       dataSaida: data.dataSaida,
       horaSaida: data.horaSaida,
       horaRetornoPrevista: data.horaRetornoPrevista,
-      motivoSaida: data.motivoSaida,
+      motivoSaida: data.motivoSaida || '',
       acompanhante: data.acompanhante,
       observacoes: data.observacoes,
       createdAt: new Date().toISOString(),
@@ -121,7 +122,7 @@ export function ResidentExitForm({ onSuccess }: ResidentExitFormProps) {
               <div className="space-y-2"><Label htmlFor="dataSaida">Data</Label><Input id="dataSaida" type="date" {...register('dataSaida')} /></div>
               <div className="space-y-2"><Label htmlFor="horaSaida">Hora Saída</Label><Input id="horaSaida" type="time" {...register('horaSaida')} /></div>
               <div className="space-y-2 sm:col-span-2"><Label htmlFor="horaRetornoPrevista">Hora Retorno Prevista *</Label><Input id="horaRetornoPrevista" type="time" {...register('horaRetornoPrevista')} className={errors.horaRetornoPrevista ? 'border-destructive' : ''} /></div>
-              <div className="space-y-2 sm:col-span-2"><Label htmlFor="motivoSaida">Motivo da Saída *</Label><Input id="motivoSaida" placeholder="Ex: Consulta médica, Passeio familiar" {...register('motivoSaida')} className={errors.motivoSaida ? 'border-destructive' : ''} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label htmlFor="motivoSaida">Motivo da Saída</Label><Input id="motivoSaida" placeholder="Ex: Consulta médica, Passeio familiar (opcional)" {...register('motivoSaida')} /></div>
               <div className="space-y-2 sm:col-span-2"><Label htmlFor="acompanhante">Acompanhante</Label><Input id="acompanhante" placeholder="Nome do acompanhante" {...register('acompanhante')} /></div>
               <div className="space-y-2 sm:col-span-2"><Label htmlFor="observacoes">Observações</Label><Textarea id="observacoes" placeholder="Observações..." rows={2} {...register('observacoes')} /></div>
             </div>

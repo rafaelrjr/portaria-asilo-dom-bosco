@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getResidents, deleteResident, initializeSampleData } from '@/lib/storage';
+import { getResidents, deleteResident, initializeSampleData, importResidentsFromJSON, importResidentsFromCSV } from '@/lib/storage';
 import { Resident } from '@/types';
 import { ResidentForm } from '@/components/forms/ResidentForm';
-import { Home, Search, Edit, Trash2, Plus } from 'lucide-react';
+import { Home, Search, Edit, Trash2, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Residents() {
@@ -17,6 +17,7 @@ export default function Residents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingResident, setEditingResident] = useState<Resident | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function init() {
@@ -28,7 +29,7 @@ export default function Residents() {
 
   async function loadResidents() {
     const data = await getResidents();
-    setResidents(data);
+    setResidents(data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
   }
 
   async function handleDelete(resident: Resident) {
@@ -36,6 +37,39 @@ export default function Residents() {
       await deleteResident(resident.id);
       loadResidents();
       toast.success('Idoso excluído com sucesso');
+    }
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result as string;
+      let result: { success: number; errors: number };
+
+      if (file.name.endsWith('.json')) {
+        result = await importResidentsFromJSON(content);
+      } else if (file.name.endsWith('.csv')) {
+        result = await importResidentsFromCSV(content);
+      } else {
+        toast.error('Formato não suportado. Use JSON ou CSV.');
+        return;
+      }
+
+      if (result.success > 0) {
+        toast.success(`${result.success} idoso(s) importado(s) com sucesso!`);
+        loadResidents();
+      }
+      if (result.errors > 0) {
+        toast.warning(`${result.errors} registro(s) com erro`);
+      }
+    };
+    reader.readAsText(file);
+    
+    if (importInputRef.current) {
+      importInputRef.current.value = '';
     }
   }
 
@@ -49,7 +83,11 @@ export default function Residents() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div><h1 className="font-display text-3xl font-bold tracking-tight">Idosos Residentes</h1><p className="text-muted-foreground">Gerencie os idosos residentes</p></div>
-          <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Idoso</Button>
+          <div className="flex gap-2">
+            <input ref={importInputRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
+            <Button variant="outline" onClick={() => importInputRef.current?.click()} className="gap-2"><Upload className="h-4 w-4" />Importar</Button>
+            <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Idoso</Button>
+          </div>
         </div>
         <Card>
           <CardHeader>
