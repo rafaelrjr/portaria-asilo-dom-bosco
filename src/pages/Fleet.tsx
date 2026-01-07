@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { VehicleTripForm } from '@/components/forms/VehicleTripForm';
 import { VehicleForm } from '@/components/forms/VehicleForm';
-import { getVehicleTrips, getVehicles, deleteVehicle } from '@/lib/storage';
+import { getVehicleTrips, getVehicles, deleteVehicle } from '@/lib/supabaseDb';
 import { exportVehicleTripsReport } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/utils';
 import { VehicleTrip, Vehicle } from '@/types';
