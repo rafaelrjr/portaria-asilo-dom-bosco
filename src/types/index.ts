@@ -151,3 +151,18 @@ export const VISITING_HOURS: VisitingHours = {
   inicio: '13:30',
   fim: '16:30',
 };
+
+export interface AuditLog {
+  id: string;
+  userId: string | null;
+  userEmail: string | null;
+  userName: string | null;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  tableName: string;
+  recordId: string;
+  oldData: Record<string, any> | null;
+  newData: Record<string, any> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}

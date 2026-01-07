@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Download, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Download, Settings, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,15 +18,21 @@ const navItems = [
   { to: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
+const adminOnlyItems = [
+  { to: '/auditoria', icon: ScrollText, label: 'Logs de Auditoria' },
+];
+
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, logout } = useAuth();
+  const { profile, role, logout } = useSupabaseAuth();
   const navigate = useNavigate();
 
   async function handleLogout() {
     await logout();
-    navigate('/login');
+    navigate('/auth');
   }
+  
+  const isAdmin = role === 'admin';
 
   return (
     <aside className={cn('fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300', collapsed ? 'w-20' : 'w-64')}>
@@ -49,12 +55,18 @@ export function Sidebar() {
               {!collapsed && <span className="animate-fade-in">{item.label}</span>}
             </NavLink>
           ))}
+          {isAdmin && adminOnlyItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => cn('flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200', isActive ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground', collapsed && 'justify-center')}>
+              <item.icon className={cn('h-5 w-5 shrink-0', collapsed && 'h-6 w-6')} />
+              {!collapsed && <span className="animate-fade-in">{item.label}</span>}
+            </NavLink>
+          ))}
         </nav>
         <div className="border-t border-sidebar-border p-3">
-          {!collapsed && user && (
+          {!collapsed && profile && (
             <div className="mb-3 px-3">
-              <p className="text-sm font-medium text-sidebar-foreground">{user.nome}</p>
-              <p className="text-xs text-sidebar-foreground/60 capitalize">{user.role}</p>
+              <p className="text-sm font-medium text-sidebar-foreground">{profile.nome}</p>
+              <p className="text-xs text-sidebar-foreground/60 capitalize">{role}</p>
             </div>
           )}
           <Button 

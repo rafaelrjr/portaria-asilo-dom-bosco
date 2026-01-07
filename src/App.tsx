@@ -15,6 +15,7 @@ import Fleet from "./pages/Fleet";
 import History from "./pages/History";
 import Backup from "./pages/Backup";
 import Settings from "./pages/Settings";
+import AuditLogs from "./pages/AuditLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/historico" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/backup" element={<ProtectedRoute><Backup /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/auditoria" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -1,5 +1,89 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek } from '@/types';
+import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek, AuditLog } from '@/types';
+
+// ==================== AUDIT LOGS ====================
+export async function createAuditLog(params: {
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  tableName: string;
+  recordId: string;
+  oldData?: Record<string, any> | null;
+  newData?: Record<string, any> | null;
+}): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    await supabase.from('audit_logs').insert({
+      user_id: user?.id,
+      user_email: user?.email,
+      user_name: user?.user_metadata?.nome || user?.email?.split('@')[0],
+      action: params.action,
+      table_name: params.tableName,
+      record_id: params.recordId,
+      old_data: params.oldData || null,
+      new_data: params.newData || null,
+    });
+  } catch (error) {
+    console.error('Error creating audit log:', error);
+    // Don't throw - audit log failures shouldn't block main operations
+  }
+}
+
+export async function getAuditLogs(filters?: {
+  startDate?: string;
+  endDate?: string;
+  tableName?: string;
+  action?: string;
+  userId?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: AuditLog[]; count: number }> {
+  let query = supabase
+    .from('audit_logs')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  if (filters?.startDate) {
+    query = query.gte('created_at', `${filters.startDate}T00:00:00`);
+  }
+  if (filters?.endDate) {
+    query = query.lte('created_at', `${filters.endDate}T23:59:59`);
+  }
+  if (filters?.tableName) {
+    query = query.eq('table_name', filters.tableName);
+  }
+  if (filters?.action) {
+    query = query.eq('action', filters.action);
+  }
+  if (filters?.userId) {
+    query = query.eq('user_id', filters.userId);
+  }
+
+  const limit = filters?.limit || 50;
+  const offset = filters?.offset || 0;
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) throw error;
+
+  return {
+    data: (data || []).map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      userEmail: row.user_email,
+      userName: row.user_name,
+      action: row.action as 'INSERT' | 'UPDATE' | 'DELETE',
+      tableName: row.table_name,
+      recordId: row.record_id,
+      oldData: row.old_data as Record<string, any> | null,
+      newData: row.new_data as Record<string, any> | null,
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
+      createdAt: row.created_at,
+    })),
+    count: count || 0,
+  };
+}
 
 // ==================== RESIDENTS ====================
 export async function getResidents(): Promise<Resident[]> {
@@ -50,7 +134,10 @@ export async function getResident(id: string): Promise<Resident | null> {
 }
 
 export async function saveResident(resident: Resident): Promise<void> {
-  const { error } = await supabase.from('residents').upsert({
+  const existing = await getResident(resident.id);
+  const isUpdate = !!existing;
+  
+  const dbData = {
     id: resident.id,
     nome: resident.nome,
     quarto: resident.quarto,
@@ -61,13 +148,32 @@ export async function saveResident(resident: Resident): Promise<void> {
     dias_saida_permitidos: resident.diasSaidaPermitidos,
     horario_saida_permitido: resident.horarioSaidaPermitido,
     horario_retorno_permitido: resident.horarioRetornoPermitido,
-  });
+  };
+  
+  const { error } = await supabase.from('residents').upsert(dbData);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'residents',
+    recordId: resident.id,
+    oldData: existing ? { nome: existing.nome, quarto: existing.quarto, ativo: existing.ativo } : null,
+    newData: { nome: resident.nome, quarto: resident.quarto, ativo: resident.ativo },
+  });
 }
 
 export async function deleteResident(id: string): Promise<void> {
+  const existing = await getResident(id);
+  
   const { error } = await supabase.from('residents').delete().eq('id', id);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'residents',
+    recordId: id,
+    oldData: existing ? { nome: existing.nome, quarto: existing.quarto } : null,
+  });
 }
 
 // ==================== PERSONS ====================
@@ -129,6 +235,9 @@ export async function getPersonByCpf(cpf: string): Promise<Person | null> {
 }
 
 export async function savePerson(person: Person): Promise<void> {
+  const existing = await getPersonByCpf(person.cpf);
+  const isUpdate = existing && existing.id === person.id;
+  
   const { error } = await supabase.from('persons').upsert({
     id: person.id,
     nome: person.nome,
@@ -146,11 +255,29 @@ export async function savePerson(person: Person): Promise<void> {
     dias_permitidos: person.diasPermitidos,
   });
   if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'persons',
+    recordId: person.id,
+    oldData: existing && isUpdate ? { nome: existing.nome, cpf: existing.cpf, tipo: existing.tipo } : null,
+    newData: { nome: person.nome, cpf: person.cpf, tipo: person.tipo },
+  });
 }
 
 export async function deletePerson(id: string): Promise<void> {
+  const persons = await getPersons();
+  const existing = persons.find(p => p.id === id);
+  
   const { error } = await supabase.from('persons').delete().eq('id', id);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'persons',
+    recordId: id,
+    oldData: existing ? { nome: existing.nome, cpf: existing.cpf } : null,
+  });
 }
 
 // ==================== VISITS ====================
@@ -276,6 +403,9 @@ export async function getActiveVisits(): Promise<Visit[]> {
 }
 
 export async function saveVisit(visit: Visit): Promise<void> {
+  const { data: existingData } = await supabase.from('visits').select('*').eq('id', visit.id).maybeSingle();
+  const isUpdate = !!existingData;
+  
   const { error } = await supabase.from('visits').upsert({
     id: visit.id,
     pessoa_id: visit.pessoaId,
@@ -291,11 +421,28 @@ export async function saveVisit(visit: Visit): Promise<void> {
     observacoes: visit.observacoes,
   });
   if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'visits',
+    recordId: visit.id,
+    oldData: existingData ? { data_entrada: existingData.data_entrada, hora_saida: existingData.hora_saida } : null,
+    newData: { data_entrada: visit.dataEntrada, hora_entrada: visit.horaEntrada, hora_saida: visit.horaSaida },
+  });
 }
 
 export async function deleteVisit(id: string): Promise<void> {
+  const { data: existing } = await supabase.from('visits').select('*').eq('id', id).maybeSingle();
+  
   const { error } = await supabase.from('visits').delete().eq('id', id);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'visits',
+    recordId: id,
+    oldData: existing ? { data_entrada: existing.data_entrada } : null,
+  });
 }
 
 // ==================== VEHICLES ====================
@@ -321,6 +468,9 @@ export async function getVehicles(): Promise<Vehicle[]> {
 }
 
 export async function saveVehicle(vehicle: Vehicle): Promise<void> {
+  const { data: existingData } = await supabase.from('vehicles').select('*').eq('id', vehicle.id).maybeSingle();
+  const isUpdate = !!existingData;
+  
   const { error } = await supabase.from('vehicles').upsert({
     id: vehicle.id,
     marca: vehicle.marca,
@@ -333,11 +483,28 @@ export async function saveVehicle(vehicle: Vehicle): Promise<void> {
     ativo: vehicle.ativo,
   });
   if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'vehicles',
+    recordId: vehicle.id,
+    oldData: existingData ? { marca: existingData.marca, modelo: existingData.modelo, placa: existingData.placa } : null,
+    newData: { marca: vehicle.marca, modelo: vehicle.modelo, placa: vehicle.placa },
+  });
 }
 
 export async function deleteVehicle(id: string): Promise<void> {
+  const { data: existing } = await supabase.from('vehicles').select('*').eq('id', id).maybeSingle();
+  
   const { error } = await supabase.from('vehicles').delete().eq('id', id);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'vehicles',
+    recordId: id,
+    oldData: existing ? { marca: existing.marca, modelo: existing.modelo, placa: existing.placa } : null,
+  });
 }
 
 // ==================== VEHICLE TRIPS ====================
@@ -366,6 +533,9 @@ export async function getVehicleTrips(): Promise<VehicleTrip[]> {
 }
 
 export async function saveVehicleTrip(trip: VehicleTrip): Promise<void> {
+  const { data: existingData } = await supabase.from('vehicle_trips').select('*').eq('id', trip.id).maybeSingle();
+  const isUpdate = !!existingData;
+  
   const { error } = await supabase.from('vehicle_trips').upsert({
     id: trip.id,
     vehicle_id: trip.vehicleId,
@@ -381,11 +551,28 @@ export async function saveVehicleTrip(trip: VehicleTrip): Promise<void> {
     observacoes: trip.observacoes,
   });
   if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'vehicle_trips',
+    recordId: trip.id,
+    oldData: existingData ? { motorista: existingData.motorista, destino: existingData.destino, hora_chegada: existingData.hora_chegada } : null,
+    newData: { motorista: trip.motorista, destino: trip.destino, hora_chegada: trip.horaChegada },
+  });
 }
 
 export async function deleteVehicleTrip(id: string): Promise<void> {
+  const { data: existing } = await supabase.from('vehicle_trips').select('*').eq('id', id).maybeSingle();
+  
   const { error } = await supabase.from('vehicle_trips').delete().eq('id', id);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'vehicle_trips',
+    recordId: id,
+    oldData: existing ? { veiculo: existing.veiculo, motorista: existing.motorista, destino: existing.destino } : null,
+  });
 }
 
 // ==================== RESIDENT EXITS ====================
@@ -467,6 +654,9 @@ export async function getPendingResidentExits(): Promise<ResidentExit[]> {
 }
 
 export async function saveResidentExit(exit: ResidentExit): Promise<void> {
+  const { data: existingData } = await supabase.from('resident_exits').select('*').eq('id', exit.id).maybeSingle();
+  const isUpdate = !!existingData;
+  
   const { error } = await supabase.from('resident_exits').upsert({
     id: exit.id,
     resident_id: exit.residentId,
@@ -479,11 +669,28 @@ export async function saveResidentExit(exit: ResidentExit): Promise<void> {
     observacoes: exit.observacoes,
   });
   if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'resident_exits',
+    recordId: exit.id,
+    oldData: existingData ? { data_saida: existingData.data_saida, hora_retorno_real: existingData.hora_retorno_real } : null,
+    newData: { data_saida: exit.dataSaida, hora_saida: exit.horaSaida, hora_retorno_real: exit.horaRetornoReal },
+  });
 }
 
 export async function deleteResidentExit(id: string): Promise<void> {
+  const { data: existing } = await supabase.from('resident_exits').select('*').eq('id', id).maybeSingle();
+  
   const { error } = await supabase.from('resident_exits').delete().eq('id', id);
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'resident_exits',
+    recordId: id,
+    oldData: existing ? { data_saida: existing.data_saida, motivo_saida: existing.motivo_saida } : null,
+  });
 }
 
 // ==================== INSTITUTION SETTINGS ====================
@@ -511,6 +718,8 @@ export async function getInstitutionSettings(): Promise<InstitutionSettings | nu
 }
 
 export async function saveInstitutionSettings(settings: InstitutionSettings): Promise<void> {
+  const existing = await getInstitutionSettings();
+  
   const { error } = await supabase.from('institution_settings').upsert({
     id: 'default',
     nome: settings.nome,
@@ -523,6 +732,14 @@ export async function saveInstitutionSettings(settings: InstitutionSettings): Pr
     horario_visita_fim: settings.horarioVisitaFim,
   });
   if (error) throw error;
+  
+  await createAuditLog({
+    action: 'UPDATE',
+    tableName: 'institution_settings',
+    recordId: 'default',
+    oldData: existing ? { nome: existing.nome, horarioVisitaInicio: existing.horarioVisitaInicio, horarioVisitaFim: existing.horarioVisitaFim } : null,
+    newData: { nome: settings.nome, horarioVisitaInicio: settings.horarioVisitaInicio, horarioVisitaFim: settings.horarioVisitaFim },
+  });
 }
 
 // ==================== USER PROFILES & ROLES ====================
