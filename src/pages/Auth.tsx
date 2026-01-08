@@ -116,13 +116,14 @@ export default function Auth() {
 
       // Se é o primeiro usuário, dar role de admin
       if (authData.user) {
-        // Verificar se há outros usuários
-        const { count } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
+        // Verificar se há algum admin existente
+        const { count: adminCount } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'admin');
 
-        if (count === 0 || count === 1) {
-          // Primeiro usuário, atribuir role de admin
+        if (adminCount === 0) {
+          // Nenhum admin existe, atribuir role de admin ao novo usuário
           await supabase.from('user_roles').insert({
             user_id: authData.user.id,
             role: 'admin',
