@@ -56,8 +56,10 @@ export async function printVisitorLabelDirect(visit: Visit): Promise<void> {
             margin-bottom: 1mm;
           }
           .header p {
-            font-size: 7pt;
-            color: #666;
+            font-size: 10pt;
+            font-weight: bold;
+            color: #333;
+            letter-spacing: 1px;
           }
           .content {
             flex: 1;
@@ -106,10 +108,17 @@ export async function printVisitorLabelDirect(visit: Visit): Promise<void> {
           <div class="content">
             <p class="name">${visit.pessoa?.nome || ''}</p>
             <p class="info"><span>CPF:</span> ${visit.pessoa?.cpf || ''}</p>
-            <p class="info"><span>Motivo:</span> ${getVisitPurposeLabel(visit.proposito)}</p>
-            ${visit.proposito === 'reuniao' && visit.pessoaDepartamento 
-              ? `<p class="info"><span>Pessoa/Dept:</span> ${visit.pessoaDepartamento}</p>` 
-              : visit.idoso ? `<p class="info"><span>Visitando:</span> ${visit.idoso.nome}</p>` : ''}
+            ${visit.proposito === 'idoso_especifico' && visit.idoso 
+              ? `<p class="info"><span>Visitando:</span> ${visit.idoso.nome}</p>`
+              : visit.proposito === 'reuniao' && visit.pessoaDepartamento 
+                ? `<p class="info"><span>Pessoa/Dept:</span> ${visit.pessoaDepartamento}</p>`
+                : visit.proposito === 'prestacao_servico' 
+                  ? `<p class="info"><span>Destino:</span> Prestação de Serviço</p>`
+                  : visit.proposito === 'acao_social' 
+                    ? `<p class="info"><span>Destino:</span> Ação Social</p>`
+                    : visit.proposito === 'visita_geral' 
+                      ? `<p class="info"><span>Destino:</span> Visita Geral</p>`
+                      : ''}
           </div>
 
           <div class="footer">
