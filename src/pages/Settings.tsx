@@ -188,14 +188,32 @@ export default function Settings() {
     if (!selectedUser) return;
 
     try {
-      const { error } = await supabase
+      // Verificar se já existe role para o usuário
+      const { data: existingRole } = await supabase
         .from('user_roles')
-        .upsert({
-          user_id: selectedUser.user_id,
-          role: selectedRole,
-        }, { onConflict: 'user_id' });
+        .select('id')
+        .eq('user_id', selectedUser.user_id)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existingRole) {
+        // Atualizar role existente
+        const { error } = await supabase
+          .from('user_roles')
+          .update({ role: selectedRole })
+          .eq('user_id', selectedUser.user_id);
+        
+        if (error) throw error;
+      } else {
+        // Inserir nova role
+        const { error } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: selectedUser.user_id,
+            role: selectedRole,
+          });
+        
+        if (error) throw error;
+      }
 
       toast.success('Perfil atualizado com sucesso!');
       setIsRoleDialogOpen(false);

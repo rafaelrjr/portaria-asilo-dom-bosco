@@ -70,6 +70,8 @@ export function getVisitPurposeLabel(purpose: string): string {
     idoso_especifico: 'Visita a Idoso',
     acao_social: 'Ação Social',
     visita_geral: 'Visita Geral',
+    reuniao: 'Reunião',
+    prestacao_servico: 'Prestação de Serviço',
   };
   return labels[purpose] || purpose;
 }
