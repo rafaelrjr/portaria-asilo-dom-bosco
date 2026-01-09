@@ -76,6 +76,8 @@ export interface Person {
 export interface Resident {
   id: string;
   nome: string;
+  cpf?: string;
+  dataNascimento?: string;
   quarto: string;
   foto?: string; // Base64 da foto
   observacoes?: string;

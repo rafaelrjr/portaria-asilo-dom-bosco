@@ -12,52 +12,56 @@ declare module 'jspdf' {
 function addHeader(doc: jsPDF, title: string, settings?: InstitutionSettings | null) {
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 15;
+  const hasLogo = !!settings?.logo;
+  const xOffset = hasLogo ? 50 : 14;
 
   // Logo
-  if (settings?.logo) {
+  if (hasLogo) {
     try {
-      doc.addImage(settings.logo, 'PNG', 14, 10, 25, 25);
-      yPos = 12;
+      doc.addImage(settings!.logo!, 'PNG', 14, 10, 30, 30);
     } catch (e) {
       console.warn('Erro ao carregar logo:', e);
     }
   }
 
   // Institution name
-  const xOffset = settings?.logo ? 45 : 14;
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(settings?.nome || 'Sistema de Portaria', xOffset, yPos);
+  yPos += 6;
 
   // Institution details
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   if (settings?.endereco) {
-    yPos += 5;
     doc.text(settings.endereco, xOffset, yPos);
+    yPos += 4;
   }
   if (settings?.cnpj) {
-    yPos += 4;
     doc.text(`CNPJ: ${settings.cnpj}`, xOffset, yPos);
+    yPos += 4;
   }
   if (settings?.telefone || settings?.email) {
-    yPos += 4;
     const contact = [settings.telefone, settings.email].filter(Boolean).join(' | ');
     doc.text(contact, xOffset, yPos);
   }
 
-  // Report title
-  yPos = settings?.logo ? 42 : 35;
-  doc.setFontSize(14);
+  // Report title - positioned after header content
+  const titleY = hasLogo ? 48 : 38;
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(title, pageWidth / 2, yPos, { align: 'center' });
+  doc.text(title, pageWidth / 2, titleY, { align: 'center' });
 
   // Date
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth / 2, yPos + 6, { align: 'center' });
+  doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth / 2, titleY + 5, { align: 'center' });
 
-  return yPos + 12;
+  // Separator line
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, titleY + 8, pageWidth - 14, titleY + 8);
+
+  return titleY + 14;
 }
 
 function addFooter(doc: jsPDF) {

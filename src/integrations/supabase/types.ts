@@ -244,7 +244,9 @@ export type Database = {
         Row: {
           ativo: boolean | null
           autorizado_saida_temporaria: boolean | null
+          cpf: string | null
           created_at: string | null
+          data_nascimento: string | null
           dias_saida_permitidos: string[] | null
           foto: string | null
           horario_retorno_permitido: string | null
@@ -257,7 +259,9 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           autorizado_saida_temporaria?: boolean | null
+          cpf?: string | null
           created_at?: string | null
+          data_nascimento?: string | null
           dias_saida_permitidos?: string[] | null
           foto?: string | null
           horario_retorno_permitido?: string | null
@@ -270,7 +274,9 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           autorizado_saida_temporaria?: boolean | null
+          cpf?: string | null
           created_at?: string | null
+          data_nascimento?: string | null
           dias_saida_permitidos?: string[] | null
           foto?: string | null
           horario_retorno_permitido?: string | null
