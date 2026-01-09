@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ActiveVisitorsList } from '@/components/dashboard/ActiveVisitorsList';
+import { AlertSummaryPanel } from '@/components/dashboard/AlertSummaryPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -136,6 +137,7 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+        <AlertSummaryPanel />
         <ActiveVisitorsList />
       </div>
 

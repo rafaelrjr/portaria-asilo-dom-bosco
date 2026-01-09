@@ -10,8 +10,10 @@ import { exportResidentExitsReport } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/utils';
 import { ResidentExit } from '@/types';
 import { DoorOpen, Download } from 'lucide-react';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 export default function ResidentExits() {
+  const { canEdit } = useSupabaseAuth();
   const [exits, setExits] = useState<ResidentExit[]>([]);
 
   useEffect(() => { loadData(); }, []);
@@ -24,11 +26,11 @@ export default function ResidentExits() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div><h1 className="font-display text-3xl font-bold tracking-tight">Saída Temporária</h1><p className="text-muted-foreground">Controle de saídas temporárias dos idosos</p></div>
           <Button variant="outline" onClick={() => exportResidentExitsReport(exits)} className="gap-2"><Download className="h-4 w-4" /> Exportar</Button>
         </div>
-        <ResidentExitForm onSuccess={loadData} />
+        {canEdit && <ResidentExitForm onSuccess={loadData} />}
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><DoorOpen className="h-5 w-5 text-primary" /> Histórico <Badge variant="secondary">{exits.length}</Badge></CardTitle></CardHeader>
           <CardContent>
@@ -44,7 +46,7 @@ export default function ResidentExits() {
                       <TableCell>{exit.horaSaida}</TableCell>
                       <TableCell>{exit.horaRetornoPrevista}</TableCell>
                       <TableCell>{exit.horaRetornoReal || '-'}</TableCell>
-                      <TableCell>{exit.motivoSaida}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{exit.motivoSaida}</TableCell>
                       <TableCell>{exit.horaRetornoReal ? <Badge variant={exit.horaRetornoReal > exit.horaRetornoPrevista ? 'destructive' : 'secondary'}>{exit.horaRetornoReal > exit.horaRetornoPrevista ? 'Atrasado' : 'No horário'}</Badge> : <Badge variant="default" className="animate-pulse">Fora</Badge>}</TableCell>
                     </TableRow>
                   ))}
