@@ -77,17 +77,37 @@ export function AlertSummaryPanel() {
       });
 
       // Verificar idosos que não retornaram no horário previsto
+      // Considera tanto a data quanto o horário (se passou o dia, está atrasado)
+      const today = new Date().toISOString().split('T')[0];
+      
       activeExits.forEach((exit: ResidentExit) => {
-        if (currentTime > exit.horaRetornoPrevista && !exit.horaRetornoReal) {
-          const minutesLate = calculateMinutesLate(exit.horaRetornoPrevista, currentTime);
-          newAlerts.push({
-            id: `resident-late-${exit.id}`,
-            type: 'resident_late_return',
-            severity: minutesLate > 60 ? 'critical' : 'warning',
-            title: `${exit.resident?.nome || 'Idoso'} - Retorno Atrasado`,
-            description: `Previsto: ${exit.horaRetornoPrevista} | Atraso: ${minutesLate} min`,
-            time: exit.horaSaida,
-          });
+        if (!exit.horaRetornoReal) {
+          // Está atrasado se: passou o dia OU (mesmo dia E passou o horário)
+          const isLateByDate = exit.dataSaida < today;
+          const isLateByTime = exit.dataSaida === today && currentTime > exit.horaRetornoPrevista;
+          
+          if (isLateByDate || isLateByTime) {
+            let minutesLate: number;
+            if (isLateByDate) {
+              // Passou o dia - calcular diferença total
+              const exitDate = new Date(exit.dataSaida + 'T' + exit.horaRetornoPrevista);
+              const now = new Date();
+              minutesLate = Math.floor((now.getTime() - exitDate.getTime()) / (1000 * 60));
+            } else {
+              minutesLate = calculateMinutesLate(exit.horaRetornoPrevista, currentTime);
+            }
+            
+            newAlerts.push({
+              id: `resident-late-${exit.id}`,
+              type: 'resident_late_return',
+              severity: minutesLate > 60 ? 'critical' : 'warning',
+              title: `${exit.resident?.nome || 'Idoso'} - Retorno Atrasado`,
+              description: isLateByDate 
+                ? `Saída: ${exit.dataSaida} | Previsto: ${exit.horaRetornoPrevista} | Não retornou!`
+                : `Previsto: ${exit.horaRetornoPrevista} | Atraso: ${minutesLate} min`,
+              time: exit.horaSaida,
+            });
+          }
         }
       });
 

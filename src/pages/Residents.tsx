@@ -11,8 +11,10 @@ import { Resident } from '@/types';
 import { ResidentForm } from '@/components/forms/ResidentForm';
 import { Home, Search, Edit, Trash2, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 export default function Residents() {
+  const { canEdit } = useSupabaseAuth();
   const [residents, setResidents] = useState<Resident[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingResident, setEditingResident] = useState<Resident | null>(null);
@@ -83,11 +85,13 @@ export default function Residents() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div><h1 className="font-display text-3xl font-bold tracking-tight">Idosos Residentes</h1><p className="text-muted-foreground">Gerencie os idosos residentes</p></div>
-          <div className="flex gap-2">
-            <input ref={importInputRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
-            <Button variant="outline" onClick={() => importInputRef.current?.click()} className="gap-2"><Upload className="h-4 w-4" />Importar</Button>
-            <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Idoso</Button>
-          </div>
+          {canEdit && (
+            <div className="flex gap-2">
+              <input ref={importInputRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
+              <Button variant="outline" onClick={() => importInputRef.current?.click()} className="gap-2"><Upload className="h-4 w-4" />Importar</Button>
+              <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Idoso</Button>
+            </div>
+          )}
         </div>
         <Card>
           <CardHeader>
@@ -109,10 +113,12 @@ export default function Residents() {
                         <TableCell><Badge variant={resident.ativo ? 'default' : 'secondary'}>{resident.ativo ? 'Ativo' : 'Inativo'}</Badge></TableCell>
                         <TableCell className="max-w-xs truncate">{resident.observacoes || '-'}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => setEditingResident(resident)}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(resident)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                          </div>
+                          {canEdit && (
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => setEditingResident(resident)}><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(resident)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

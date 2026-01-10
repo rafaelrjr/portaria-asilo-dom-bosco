@@ -12,8 +12,10 @@ import { Person, Resident } from '@/types';
 import { PersonForm } from '@/components/forms/PersonForm';
 import { Users, Search, Edit, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 export default function Visitors() {
+  const { canEdit } = useSupabaseAuth();
   const [persons, setPersons] = useState<Person[]>([]);
   const [residentCache, setResidentCache] = useState<Map<string, Resident | undefined>>(new Map());
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,7 +55,7 @@ export default function Visitors() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div><h1 className="font-display text-3xl font-bold tracking-tight">Visitantes Cadastrados</h1><p className="text-muted-foreground">Gerencie os visitantes cadastrados no sistema</p></div>
-          <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Visitante</Button>
+          {canEdit && <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Visitante</Button>}
         </div>
         <Card>
           <CardHeader>
@@ -78,10 +80,12 @@ export default function Visitors() {
                           <TableCell><Badge variant="outline">{getVisitorTypeLabel(person.tipo)}</Badge></TableCell>
                           <TableCell>{idoso ? `${idoso.nome}${idoso.quarto ? ` (Q.${idoso.quarto})` : ''}` : '-'}</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => setEditingPerson(person)}><Edit className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(person)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </div>
+                            {canEdit && (
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => setEditingPerson(person)}><Edit className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(person)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       );

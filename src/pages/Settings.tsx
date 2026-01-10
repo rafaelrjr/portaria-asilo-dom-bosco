@@ -8,14 +8,30 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   getInstitutionSettings, 
   saveInstitutionSettings,
+  getVisits,
+  getResidents,
+  getVehicleTrips,
+  getResidentExits,
 } from '@/lib/supabaseDb';
+import { 
+  exportVisitsReportExcel,
+  exportResidentsReportExcel,
+  exportVehicleTripsReportExcel,
+  exportResidentExitsReportExcel,
+} from '@/lib/exportUtils';
+import {
+  generateVisitsReportPDF,
+  generateVehicleTripsReportPDF,
+  generateResidentExitsReportPDF,
+  generateResidentsReportPDF,
+} from '@/lib/pdfUtils';
 import { UserRole, InstitutionSettings } from '@/types';
 import { formatCNPJ, formatPhone } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -41,7 +57,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Building2, Users, Save, Camera, Upload, Shield } from 'lucide-react';
+import { Building2, Users, Save, Camera, Upload, Shield, FileDown, FileSpreadsheet, UserPlus, Database, FileText, Home, DoorOpen, Truck } from 'lucide-react';
 
 interface SupabaseUser {
   id: string;
@@ -66,14 +82,29 @@ const institutionSchema = z.object({
 
 type InstitutionFormData = z.infer<typeof institutionSchema>;
 
+const newUserSchema = z.object({
+  nome: z.string().min(3, 'Nome é obrigatório'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  role: z.enum(['admin', 'operador', 'visualizador']),
+});
+
+type NewUserFormData = z.infer<typeof newUserSchema>;
+
 export default function Settings() {
-  const { user: currentUser, canManage } = useSupabaseAuth();
+  const { user: currentUser, canManage, session } = useSupabaseAuth();
   const [users, setUsers] = useState<SupabaseUser[]>([]);
   const [logo, setLogo] = useState<string | undefined>(undefined);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SupabaseUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('operador');
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [exportingVisits, setExportingVisits] = useState(false);
+  const [exportingResidents, setExportingResidents] = useState(false);
+  const [exportingTrips, setExportingTrips] = useState(false);
+  const [exportingExits, setExportingExits] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -84,6 +115,18 @@ export default function Settings() {
   } = useForm<InstitutionFormData>({
     resolver: zodResolver(institutionSchema),
     defaultValues: { nome: 'Asilo Dom Bosco', horarioVisitaInicio: '08:00', horarioVisitaFim: '17:00' },
+  });
+
+  const {
+    register: registerNewUser,
+    handleSubmit: handleSubmitNewUser,
+    reset: resetNewUserForm,
+    setValue: setNewUserValue,
+    watch: watchNewUser,
+    formState: { errors: newUserErrors },
+  } = useForm<NewUserFormData>({
+    resolver: zodResolver(newUserSchema),
+    defaultValues: { role: 'operador' },
   });
 
   useEffect(() => {
@@ -245,6 +288,181 @@ export default function Settings() {
     }
   }
 
+  async function handleCreateUser(data: NewUserFormData) {
+    setIsCreatingUser(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            nome: data.nome,
+            email: data.email,
+            password: data.password,
+            role: data.role,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao criar usuário');
+      }
+
+      toast.success('Usuário criado com sucesso!');
+      setIsNewUserDialogOpen(false);
+      resetNewUserForm();
+      loadData();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar usuário');
+    } finally {
+      setIsCreatingUser(false);
+    }
+  }
+
+  // Export functions
+  async function handleExportVisitsPDF() {
+    setExportingVisits(true);
+    try {
+      const [visits, settings] = await Promise.all([getVisits(), getInstitutionSettings()]);
+      if (visits.length === 0) {
+        toast.warning('Nenhuma visita encontrada');
+        return;
+      }
+      generateVisitsReportPDF(visits, settings);
+      toast.success('Relatório PDF gerado!');
+    } catch (error) {
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setExportingVisits(false);
+    }
+  }
+
+  async function handleExportVisitsExcel() {
+    setExportingVisits(true);
+    try {
+      const visits = await getVisits();
+      if (visits.length === 0) {
+        toast.warning('Nenhuma visita encontrada');
+        return;
+      }
+      await exportVisitsReportExcel(visits);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar Excel');
+    } finally {
+      setExportingVisits(false);
+    }
+  }
+
+  async function handleExportResidentsPDF() {
+    setExportingResidents(true);
+    try {
+      const [residents, settings] = await Promise.all([getResidents(), getInstitutionSettings()]);
+      if (residents.length === 0) {
+        toast.warning('Nenhum idoso encontrado');
+        return;
+      }
+      generateResidentsReportPDF(residents, settings);
+      toast.success('Relatório PDF gerado!');
+    } catch (error) {
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setExportingResidents(false);
+    }
+  }
+
+  async function handleExportResidentsExcel() {
+    setExportingResidents(true);
+    try {
+      const residents = await getResidents();
+      if (residents.length === 0) {
+        toast.warning('Nenhum idoso encontrado');
+        return;
+      }
+      await exportResidentsReportExcel(residents);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar Excel');
+    } finally {
+      setExportingResidents(false);
+    }
+  }
+
+  async function handleExportTripsPDF() {
+    setExportingTrips(true);
+    try {
+      const [trips, settings] = await Promise.all([getVehicleTrips(), getInstitutionSettings()]);
+      if (trips.length === 0) {
+        toast.warning('Nenhuma viagem encontrada');
+        return;
+      }
+      generateVehicleTripsReportPDF(trips, settings);
+      toast.success('Relatório PDF gerado!');
+    } catch (error) {
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setExportingTrips(false);
+    }
+  }
+
+  async function handleExportTripsExcel() {
+    setExportingTrips(true);
+    try {
+      const trips = await getVehicleTrips();
+      if (trips.length === 0) {
+        toast.warning('Nenhuma viagem encontrada');
+        return;
+      }
+      await exportVehicleTripsReportExcel(trips);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar Excel');
+    } finally {
+      setExportingTrips(false);
+    }
+  }
+
+  async function handleExportExitsPDF() {
+    setExportingExits(true);
+    try {
+      const [exits, settings] = await Promise.all([getResidentExits(), getInstitutionSettings()]);
+      if (exits.length === 0) {
+        toast.warning('Nenhuma saída encontrada');
+        return;
+      }
+      generateResidentExitsReportPDF(exits, settings);
+      toast.success('Relatório PDF gerado!');
+    } catch (error) {
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setExportingExits(false);
+    }
+  }
+
+  async function handleExportExitsExcel() {
+    setExportingExits(true);
+    try {
+      const exits = await getResidentExits();
+      if (exits.length === 0) {
+        toast.warning('Nenhuma saída encontrada');
+        return;
+      }
+      await exportResidentExitsReportExcel(exits);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar Excel');
+    } finally {
+      setExportingExits(false);
+    }
+  }
+
   function getRoleLabel(role: UserRole | null): string {
     if (!role) return 'Sem perfil';
     const labels: Record<UserRole, string> = {
@@ -292,7 +510,7 @@ export default function Settings() {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">Gerencie a instituição e usuários do sistema</p>
+          <p className="text-muted-foreground">Gerencie a instituição, usuários e relatórios</p>
         </div>
 
         <Tabs defaultValue="institution" className="space-y-6">
@@ -304,6 +522,10 @@ export default function Settings() {
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" />
               Usuários
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-2">
+              <FileDown className="h-4 w-4" />
+              Relatórios
             </TabsTrigger>
           </TabsList>
 
@@ -437,15 +659,18 @@ export default function Settings() {
           <TabsContent value="users">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Usuários do Sistema
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Usuários do Sistema
+                  </CardTitle>
+                  <Button onClick={() => setIsNewUserDialogOpen(true)} className="gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Novo Usuário
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Usuários são criados através da tela de cadastro. Aqui você pode gerenciar os perfis de acesso.
-                </p>
                 <div className="rounded-lg border">
                   <Table>
                     <TableHeader>
@@ -510,6 +735,90 @@ export default function Settings() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="reports">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Relatório de Visitas
+                  </CardTitle>
+                  <CardDescription>Exporte o histórico de visitas</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Button onClick={handleExportVisitsPDF} disabled={exportingVisits} variant="outline" className="flex-1 gap-2">
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </Button>
+                  <Button onClick={handleExportVisitsExcel} disabled={exportingVisits} variant="outline" className="flex-1 gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Home className="h-5 w-5 text-primary" />
+                    Cadastro de Idosos
+                  </CardTitle>
+                  <CardDescription>Exporte a lista de idosos</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Button onClick={handleExportResidentsPDF} disabled={exportingResidents} variant="outline" className="flex-1 gap-2">
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </Button>
+                  <Button onClick={handleExportResidentsExcel} disabled={exportingResidents} variant="outline" className="flex-1 gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-primary" />
+                    Relatório de Veículos
+                  </CardTitle>
+                  <CardDescription>Exporte o histórico de viagens</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Button onClick={handleExportTripsPDF} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </Button>
+                  <Button onClick={handleExportTripsExcel} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DoorOpen className="h-5 w-5 text-primary" />
+                    Saídas Temporárias
+                  </CardTitle>
+                  <CardDescription>Exporte o histórico de saídas de idosos</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Button onClick={handleExportExitsPDF} disabled={exportingExits} variant="outline" className="flex-1 gap-2">
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </Button>
+                  <Button onClick={handleExportExitsExcel} disabled={exportingExits} variant="outline" className="flex-1 gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -558,6 +867,81 @@ export default function Settings() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New User Dialog */}
+      <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Usuário</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitNewUser(handleCreateUser)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newUserNome">Nome Completo *</Label>
+              <Input
+                id="newUserNome"
+                placeholder="Nome do usuário"
+                {...registerNewUser('nome')}
+                className={newUserErrors.nome ? 'border-destructive' : ''}
+              />
+              {newUserErrors.nome && <p className="text-sm text-destructive">{newUserErrors.nome.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newUserEmail">Email *</Label>
+              <Input
+                id="newUserEmail"
+                type="email"
+                placeholder="email@exemplo.com"
+                {...registerNewUser('email')}
+                className={newUserErrors.email ? 'border-destructive' : ''}
+              />
+              {newUserErrors.email && <p className="text-sm text-destructive">{newUserErrors.email.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newUserPassword">Senha *</Label>
+              <Input
+                id="newUserPassword"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                {...registerNewUser('password')}
+                className={newUserErrors.password ? 'border-destructive' : ''}
+              />
+              {newUserErrors.password && <p className="text-sm text-destructive">{newUserErrors.password.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Perfil de Acesso *</Label>
+              <Select
+                value={watchNewUser('role')}
+                onValueChange={(value) => setNewUserValue('role', value as UserRole)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="operador">Operador</SelectItem>
+                  <SelectItem value="visualizador">Visualizador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsNewUserDialogOpen(false);
+                  resetNewUserForm();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isCreatingUser} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                {isCreatingUser ? 'Criando...' : 'Criar Usuário'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </Layout>

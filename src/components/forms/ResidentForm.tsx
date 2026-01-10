@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Resident, DayOfWeek, DAYS_OF_WEEK } from '@/types';
 import { saveResident } from '@/lib/storage';
-import { generateId } from '@/lib/utils';
+import { generateId, formatCPF } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,8 @@ import { WebcamCapture } from '@/components/camera/WebcamCapture';
 
 const residentSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
+  cpf: z.string().optional(),
+  dataNascimento: z.string().optional(),
   quarto: z.string().optional(),
   observacoes: z.string().optional(),
   ativo: z.boolean(),
@@ -50,9 +52,15 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
     formState: { errors, isSubmitting },
   } = useForm<ResidentFormData>({
     resolver: zodResolver(residentSchema),
-    defaultValues: resident || {
+    defaultValues: resident ? {
+      ...resident,
+      cpf: resident.cpf || '',
+      dataNascimento: resident.dataNascimento || '',
+    } : {
       ativo: true,
       autorizadoSaidaTemporaria: false,
+      cpf: '',
+      dataNascimento: '',
     },
   });
 
@@ -90,10 +98,16 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
   }
 
 
+  function handleCPFChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setValue('cpf', formatCPF(e.target.value));
+  }
+
   async function onSubmit(data: ResidentFormData) {
     const newResident: Resident = {
       id: resident?.id || generateId(),
       nome: data.nome,
+      cpf: data.cpf,
+      dataNascimento: data.dataNascimento,
       quarto: data.quarto,
       foto,
       observacoes: data.observacoes,
@@ -196,6 +210,27 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
                 {errors.nome && (
                   <p className="text-sm text-destructive">{errors.nome.message}</p>
                 )}
+              </div>
+
+              {/* CPF */}
+              <div className="space-y-2">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  placeholder="000.000.000-00"
+                  {...register('cpf')}
+                  onChange={handleCPFChange}
+                />
+              </div>
+
+              {/* Data de Nascimento */}
+              <div className="space-y-2">
+                <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+                <Input
+                  id="dataNascimento"
+                  type="date"
+                  {...register('dataNascimento')}
+                />
               </div>
 
               {/* Quarto */}
