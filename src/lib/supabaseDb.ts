@@ -96,6 +96,8 @@ export async function getResidents(): Promise<Resident[]> {
   return (data || []).map(row => ({
     id: row.id,
     nome: row.nome,
+    cpf: row.cpf,
+    dataNascimento: row.data_nascimento,
     quarto: row.quarto,
     foto: row.foto,
     observacoes: row.observacoes,
@@ -121,6 +123,8 @@ export async function getResident(id: string): Promise<Resident | null> {
   return {
     id: data.id,
     nome: data.nome,
+    cpf: data.cpf,
+    dataNascimento: data.data_nascimento,
     quarto: data.quarto,
     foto: data.foto,
     observacoes: data.observacoes,
@@ -140,6 +144,8 @@ export async function saveResident(resident: Resident): Promise<void> {
   const dbData = {
     id: resident.id,
     nome: resident.nome,
+    cpf: resident.cpf,
+    data_nascimento: resident.dataNascimento,
     quarto: resident.quarto,
     foto: resident.foto,
     observacoes: resident.observacoes,

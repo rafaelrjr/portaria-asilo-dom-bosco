@@ -24,6 +24,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ nome: string; username: string; email: string | null } | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
     // Setup auth state listener FIRST
@@ -40,6 +41,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
           setRole(null);
+          setIsActive(true);
         }
       }
     );
@@ -66,6 +68,21 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (profileRes.data) {
+        // Check if user is active
+        const userIsActive = profileRes.data.ativo ?? true;
+        setIsActive(userIsActive);
+        
+        if (!userIsActive) {
+          // User is deactivated - log them out
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setRole(null);
+          setIsLoading(false);
+          return;
+        }
+        
         setProfile({
           nome: profileRes.data.nome,
           username: profileRes.data.username,
