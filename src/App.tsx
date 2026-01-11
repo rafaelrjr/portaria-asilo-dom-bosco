@@ -14,6 +14,7 @@ import ResidentExits from "./pages/ResidentExits";
 import Fleet from "./pages/Fleet";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 import AuditLogs from "./pages/AuditLogs";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ function AppRoutes() {
       <Route path="/saidas-idosos" element={<ProtectedRoute><ResidentExits /></ProtectedRoute>} />
       <Route path="/frota" element={<ProtectedRoute><Fleet /></ProtectedRoute>} />
       <Route path="/historico" element={<ProtectedRoute><History /></ProtectedRoute>} />
+      <Route path="/relatorios" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/auditoria" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />

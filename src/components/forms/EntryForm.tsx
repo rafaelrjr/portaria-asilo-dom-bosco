@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Person, Visit, VisitPurpose, Resident } from '@/types';
+import { Person, Visit, VisitPurpose, Resident, InstitutionSettings } from '@/types';
 import { searchPersons, getResidents, saveVisit, getActiveVisits } from '@/lib/storage';
+import { getInstitutionSettings } from '@/lib/supabaseDb';
 import { getCurrentDate, getCurrentTime, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { DoorOpen, Search, User, Printer } from 'lucide-react';
+import { DoorOpen, Search, User, Printer, AlertTriangle } from 'lucide-react';
 import { PersonForm } from './PersonForm';
 import { printVisitorLabelDirect } from '@/components/visitors/VisitorLabel';
 
@@ -33,6 +35,10 @@ export function EntryForm() {
   const [showNewPersonForm, setShowNewPersonForm] = useState(false);
   const [residents, setResidents] = useState<Resident[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [institutionSettings, setInstitutionSettings] = useState<InstitutionSettings | null>(null);
+  const [showJustificationDialog, setShowJustificationDialog] = useState(false);
+  const [justification, setJustification] = useState('');
+  const [pendingSubmitData, setPendingSubmitData] = useState<EntryFormData | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
@@ -43,9 +49,13 @@ export function EntryForm() {
 
   useEffect(() => {
     async function load() {
-      const res = await getResidents();
+      const [res, settings] = await Promise.all([
+        getResidents(),
+        getInstitutionSettings(),
+      ]);
       const filtered = res.filter(r => r.ativo);
       setResidents(filtered.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
+      setInstitutionSettings(settings);
     }
     load();
   }, []);
@@ -76,11 +86,59 @@ export function EntryForm() {
     toast.success('Pessoa cadastrada! Agora registre a entrada.');
   }
 
+  function isOutsideVisitingHours(): boolean {
+    if (!institutionSettings) return false;
+    
+    const currentTime = getCurrentTime();
+    const startTime = institutionSettings.horarioVisitaInicio || '08:00';
+    const endTime = institutionSettings.horarioVisitaFim || '17:00';
+    
+    // If person has special hours, check those instead
+    if (selectedPerson?.horarioEspecial) {
+      const personStart = selectedPerson.horarioEspecialInicio || startTime;
+      const personEnd = selectedPerson.horarioEspecialFim || endTime;
+      return currentTime < personStart || currentTime > personEnd;
+    }
+    
+    return currentTime < startTime || currentTime > endTime;
+  }
+
   async function onSubmit(data: EntryFormData) {
     if (!selectedPerson) {
       toast.error('Selecione uma pessoa para registrar a entrada');
       return;
     }
+
+    // Check if outside visiting hours
+    if (isOutsideVisitingHours()) {
+      setPendingSubmitData(data);
+      setShowJustificationDialog(true);
+      return;
+    }
+
+    await processSubmit(data);
+  }
+
+  async function handleJustificationSubmit() {
+    if (!justification.trim()) {
+      toast.error('Justificativa é obrigatória para entrada fora do horário');
+      return;
+    }
+    
+    if (pendingSubmitData) {
+      await processSubmit({
+        ...pendingSubmitData,
+        observacoes: `[FORA DO HORÁRIO] ${justification}${pendingSubmitData.observacoes ? `\n${pendingSubmitData.observacoes}` : ''}`,
+      });
+    }
+    
+    setShowJustificationDialog(false);
+    setJustification('');
+    setPendingSubmitData(null);
+  }
+
+  async function processSubmit(data: EntryFormData) {
+    if (!selectedPerson) return;
 
     // Verificar se a pessoa já possui visita ativa
     const activeVisits = await getActiveVisits();
@@ -242,6 +300,47 @@ export function EntryForm() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Out-of-hours justification dialog */}
+      <Dialog open={showJustificationDialog} onOpenChange={setShowJustificationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Entrada Fora do Horário
+            </DialogTitle>
+            <DialogDescription>
+              O horário atual está fora do período de visitação permitido 
+              ({institutionSettings?.horarioVisitaInicio || '08:00'} - {institutionSettings?.horarioVisitaFim || '17:00'}).
+              É necessário informar uma justificativa para prosseguir.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="justification">Justificativa *</Label>
+              <Textarea 
+                id="justification"
+                placeholder="Informe o motivo da entrada fora do horário..."
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowJustificationDialog(false);
+              setJustification('');
+              setPendingSubmitData(null);
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleJustificationSubmit}>
+              Confirmar Entrada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Settings, ScrollText, Menu } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Settings, ScrollText, Menu, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -15,7 +15,8 @@ const allNavItems = [
   { to: '/saidas-idosos', icon: LogOut, label: 'Saída Temporária', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/frota', icon: Truck, label: 'Frota', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/historico', icon: History, label: 'Histórico', roles: ['admin', 'operador', 'visualizador'] },
-  { to: '/configuracoes', icon: Settings, label: 'Configurações', roles: ['admin', 'operador', 'visualizador'] },
+  { to: '/relatorios', icon: FileText, label: 'Relatórios', roles: ['admin', 'operador', 'visualizador'] },
+  { to: '/configuracoes', icon: Settings, label: 'Configurações', roles: ['admin'] },
 ];
 
 const adminOnlyItems = [
