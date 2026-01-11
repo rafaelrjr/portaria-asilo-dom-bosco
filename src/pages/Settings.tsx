@@ -523,10 +523,6 @@ export default function Settings() {
               <Users className="h-4 w-4" />
               Usuários
             </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2">
-              <FileDown className="h-4 w-4" />
-              Relatórios
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="institution">
@@ -734,90 +730,6 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Relatório de Visitas
-                  </CardTitle>
-                  <CardDescription>Exporte o histórico de visitas</CardDescription>
-                </CardHeader>
-                <CardContent className="flex gap-3">
-                  <Button onClick={handleExportVisitsPDF} disabled={exportingVisits} variant="outline" className="flex-1 gap-2">
-                    <FileText className="h-4 w-4" />
-                    PDF
-                  </Button>
-                  <Button onClick={handleExportVisitsExcel} disabled={exportingVisits} variant="outline" className="flex-1 gap-2">
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Excel
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Home className="h-5 w-5 text-primary" />
-                    Cadastro de Idosos
-                  </CardTitle>
-                  <CardDescription>Exporte a lista de idosos</CardDescription>
-                </CardHeader>
-                <CardContent className="flex gap-3">
-                  <Button onClick={handleExportResidentsPDF} disabled={exportingResidents} variant="outline" className="flex-1 gap-2">
-                    <FileText className="h-4 w-4" />
-                    PDF
-                  </Button>
-                  <Button onClick={handleExportResidentsExcel} disabled={exportingResidents} variant="outline" className="flex-1 gap-2">
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Excel
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-5 w-5 text-primary" />
-                    Relatório de Veículos
-                  </CardTitle>
-                  <CardDescription>Exporte o histórico de viagens</CardDescription>
-                </CardHeader>
-                <CardContent className="flex gap-3">
-                  <Button onClick={handleExportTripsPDF} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
-                    <FileText className="h-4 w-4" />
-                    PDF
-                  </Button>
-                  <Button onClick={handleExportTripsExcel} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Excel
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DoorOpen className="h-5 w-5 text-primary" />
-                    Saídas Temporárias
-                  </CardTitle>
-                  <CardDescription>Exporte o histórico de saídas de idosos</CardDescription>
-                </CardHeader>
-                <CardContent className="flex gap-3">
-                  <Button onClick={handleExportExitsPDF} disabled={exportingExits} variant="outline" className="flex-1 gap-2">
-                    <FileText className="h-4 w-4" />
-                    PDF
-                  </Button>
-                  <Button onClick={handleExportExitsExcel} disabled={exportingExits} variant="outline" className="flex-1 gap-2">
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Excel
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
         </Tabs>
       </div>

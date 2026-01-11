@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getInstitutionSettings } from '@/lib/supabaseDb';
 import { InstitutionSettings } from '@/types';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -38,10 +39,33 @@ export default function Auth() {
       }
     });
 
-    // Carregar configurações - ignorar erros pois pode não haver dados ainda
-    getInstitutionSettings()
-      .then(setSettings)
-      .catch(() => setSettings(null));
+    // Carregar configurações da instituição - usar cliente direto para evitar problemas de RLS
+    async function loadSettings() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('institution_settings')
+          .select('*')
+          .eq('id', 'default')
+          .maybeSingle();
+        
+        if (data && !error) {
+          setSettings({
+            id: data.id,
+            nome: data.nome,
+            endereco: data.endereco,
+            telefone: data.telefone,
+            cnpj: data.cnpj,
+            email: data.email,
+            logo: data.logo,
+            horarioVisitaInicio: data.horario_visita_inicio || '08:00',
+            horarioVisitaFim: data.horario_visita_fim || '17:00',
+          });
+        }
+      } catch (err) {
+        console.log('Could not load institution settings');
+      }
+    }
+    loadSettings();
   }, [navigate]);
 
   async function handleLogin(data: LoginFormData) {
