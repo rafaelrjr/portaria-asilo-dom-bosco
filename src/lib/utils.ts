@@ -60,6 +60,9 @@ export function getVisitorTypeLabel(type: string): string {
     prestador: 'Prestador de Serviço',
     acao_social: 'Ação Social',
     visita_geral: 'Visita Geral',
+    voluntario: 'Voluntário',
+    diretoria: 'Diretoria',
+    visita_religiosa: 'Visita Religiosa',
     outro: 'Outro',
   };
   return labels[type] || type;

@@ -1,4 +1,4 @@
-export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_geral' | 'voluntario' | 'diretoria' | 'outro';
+export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_geral' | 'voluntario' | 'diretoria' | 'visita_religiosa' | 'outro';
 
 export type VisitPurpose = 'idoso_especifico' | 'acao_social' | 'visita_geral' | 'reuniao' | 'prestacao_servico';
 
@@ -39,6 +39,22 @@ export interface InstitutionSettings {
   observacoes?: string;
   horarioVisitaInicio?: string;
   horarioVisitaFim?: string;
+  horarioEnfermariaInicio?: string;
+  horarioEnfermariaFim?: string;
+}
+
+export interface WeekendExit {
+  id: string;
+  residentId: string;
+  resident?: Resident;
+  dataSaida: string;
+  horaSaida: string;
+  dataRetornoPrevista?: string;
+  horaRetornoPrevista?: string;
+  horaRetornoReal?: string;
+  acompanhante: string;
+  observacoes?: string;
+  createdAt: string;
 }
 
 export interface Vehicle {
