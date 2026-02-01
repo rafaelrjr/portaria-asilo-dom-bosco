@@ -86,21 +86,39 @@ export function EntryForm() {
     toast.success('Pessoa cadastrada! Agora registre a entrada.');
   }
 
-  function isOutsideVisitingHours(): boolean {
+  // Get applicable visiting hours based on visitor special hours and infirmary rules
+  function getApplicableVisitingHours(idosoId?: string): { inicio: string; fim: string } {
+    // 1. If visitor has special hours, use those (highest priority)
+    if (selectedPerson?.horarioEspecial) {
+      return {
+        inicio: selectedPerson.horarioEspecialInicio || '08:00',
+        fim: selectedPerson.horarioEspecialFim || '17:00',
+      };
+    }
+    
+    // 2. If selected resident is in infirmary, use infirmary hours
+    const selectedResident = residents.find(r => r.id === idosoId);
+    if (selectedResident?.quarto?.toLowerCase() === 'enfermaria') {
+      return {
+        inicio: institutionSettings?.horarioEnfermariaInicio || '14:30',
+        fim: institutionSettings?.horarioEnfermariaFim || '16:00',
+      };
+    }
+    
+    // 3. Use normal institution hours
+    return {
+      inicio: institutionSettings?.horarioVisitaInicio || '08:00',
+      fim: institutionSettings?.horarioVisitaFim || '17:00',
+    };
+  }
+
+  function isOutsideVisitingHours(idosoId?: string): boolean {
     if (!institutionSettings) return false;
     
     const currentTime = getCurrentTime();
-    const startTime = institutionSettings.horarioVisitaInicio || '08:00';
-    const endTime = institutionSettings.horarioVisitaFim || '17:00';
+    const { inicio, fim } = getApplicableVisitingHours(idosoId);
     
-    // If person has special hours, check those instead
-    if (selectedPerson?.horarioEspecial) {
-      const personStart = selectedPerson.horarioEspecialInicio || startTime;
-      const personEnd = selectedPerson.horarioEspecialFim || endTime;
-      return currentTime < personStart || currentTime > personEnd;
-    }
-    
-    return currentTime < startTime || currentTime > endTime;
+    return currentTime < inicio || currentTime > fim;
   }
 
   async function onSubmit(data: EntryFormData) {
@@ -109,8 +127,8 @@ export function EntryForm() {
       return;
     }
 
-    // Check if outside visiting hours
-    if (isOutsideVisitingHours()) {
+    // Check if outside visiting hours, considering infirmary rules
+    if (isOutsideVisitingHours(data.idosoId)) {
       setPendingSubmitData(data);
       setShowJustificationDialog(true);
       return;
@@ -305,14 +323,23 @@ export function EntryForm() {
       <Dialog open={showJustificationDialog} onOpenChange={setShowJustificationDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
               Entrada Fora do Horário
             </DialogTitle>
             <DialogDescription>
-              O horário atual está fora do período de visitação permitido 
-              ({institutionSettings?.horarioVisitaInicio || '08:00'} - {institutionSettings?.horarioVisitaFim || '17:00'}).
-              É necessário informar uma justificativa para prosseguir.
+              {(() => {
+                const hours = getApplicableVisitingHours(pendingSubmitData?.idosoId);
+                const selectedResident = residents.find(r => r.id === pendingSubmitData?.idosoId);
+                const isInfirmary = selectedResident?.quarto?.toLowerCase() === 'enfermaria';
+                return (
+                  <>
+                    O horário atual está fora do período de visitação permitido
+                    {isInfirmary && ' para a enfermaria'} ({hours.inicio} - {hours.fim}).
+                    É necessário informar uma justificativa para prosseguir.
+                  </>
+                );
+              })()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

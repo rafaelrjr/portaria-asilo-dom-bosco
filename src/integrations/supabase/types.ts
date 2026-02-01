@@ -64,6 +64,8 @@ export type Database = {
           cnpj: string | null
           email: string | null
           endereco: string | null
+          horario_enfermaria_fim: string | null
+          horario_enfermaria_inicio: string | null
           horario_visita_fim: string | null
           horario_visita_inicio: string | null
           id: string
@@ -76,6 +78,8 @@ export type Database = {
           cnpj?: string | null
           email?: string | null
           endereco?: string | null
+          horario_enfermaria_fim?: string | null
+          horario_enfermaria_inicio?: string | null
           horario_visita_fim?: string | null
           horario_visita_inicio?: string | null
           id?: string
@@ -88,6 +92,8 @@ export type Database = {
           cnpj?: string | null
           email?: string | null
           endereco?: string | null
+          horario_enfermaria_fim?: string | null
+          horario_enfermaria_inicio?: string | null
           horario_visita_fim?: string | null
           horario_visita_inicio?: string | null
           id?: string
@@ -460,6 +466,53 @@ export type Database = {
             columns: ["pessoa_id"]
             isOneToOne: false
             referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekend_exits: {
+        Row: {
+          acompanhante: string
+          created_at: string
+          data_retorno_prevista: string | null
+          data_saida: string
+          hora_retorno_prevista: string | null
+          hora_retorno_real: string | null
+          hora_saida: string
+          id: string
+          observacoes: string | null
+          resident_id: string
+        }
+        Insert: {
+          acompanhante: string
+          created_at?: string
+          data_retorno_prevista?: string | null
+          data_saida: string
+          hora_retorno_prevista?: string | null
+          hora_retorno_real?: string | null
+          hora_saida: string
+          id?: string
+          observacoes?: string | null
+          resident_id: string
+        }
+        Update: {
+          acompanhante?: string
+          created_at?: string
+          data_retorno_prevista?: string | null
+          data_saida?: string
+          hora_retorno_prevista?: string | null
+          hora_retorno_real?: string | null
+          hora_saida?: string
+          id?: string
+          observacoes?: string | null
+          resident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekend_exits_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
             referencedColumns: ["id"]
           },
         ]

@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek, AuditLog } from '@/types';
+import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, WeekendExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek, AuditLog } from '@/types';
 
 // ==================== AUDIT LOGS ====================
 export async function createAuditLog(params: {
@@ -782,6 +782,8 @@ export async function getInstitutionSettings(): Promise<InstitutionSettings | nu
     logo: data.logo,
     horarioVisitaInicio: data.horario_visita_inicio || '08:00',
     horarioVisitaFim: data.horario_visita_fim || '17:00',
+    horarioEnfermariaInicio: (data as any).horario_enfermaria_inicio || '14:30',
+    horarioEnfermariaFim: (data as any).horario_enfermaria_fim || '16:00',
   };
 }
 
@@ -798,6 +800,8 @@ export async function saveInstitutionSettings(settings: InstitutionSettings): Pr
     logo: settings.logo,
     horario_visita_inicio: settings.horarioVisitaInicio,
     horario_visita_fim: settings.horarioVisitaFim,
+    horario_enfermaria_inicio: settings.horarioEnfermariaInicio,
+    horario_enfermaria_fim: settings.horarioEnfermariaFim,
   });
   if (error) throw error;
   
@@ -807,6 +811,84 @@ export async function saveInstitutionSettings(settings: InstitutionSettings): Pr
     recordId: 'default',
     oldData: existing ? { nome: existing.nome, horarioVisitaInicio: existing.horarioVisitaInicio, horarioVisitaFim: existing.horarioVisitaFim } : null,
     newData: { nome: settings.nome, horarioVisitaInicio: settings.horarioVisitaInicio, horarioVisitaFim: settings.horarioVisitaFim },
+  });
+}
+
+// ==================== WEEKEND EXITS ====================
+export async function getWeekendExits(): Promise<WeekendExit[]> {
+  const { data, error } = await supabase
+    .from('weekend_exits')
+    .select(`
+      *,
+      resident:residents(*)
+    `)
+    .order('data_saida', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(row => ({
+    id: row.id,
+    residentId: row.resident_id,
+    dataSaida: row.data_saida,
+    horaSaida: row.hora_saida,
+    dataRetornoPrevista: row.data_retorno_prevista,
+    horaRetornoPrevista: row.hora_retorno_prevista,
+    horaRetornoReal: row.hora_retorno_real,
+    acompanhante: row.acompanhante,
+    observacoes: row.observacoes,
+    createdAt: row.created_at,
+    resident: row.resident ? {
+      id: row.resident.id,
+      nome: row.resident.nome,
+      quarto: row.resident.quarto,
+      foto: row.resident.foto,
+      observacoes: row.resident.observacoes,
+      ativo: row.resident.ativo ?? true,
+      autorizadoSaidaTemporaria: row.resident.autorizado_saida_temporaria ?? false,
+      diasSaidaPermitidos: (row.resident.dias_saida_permitidos || []) as DayOfWeek[],
+      horarioSaidaPermitido: row.resident.horario_saida_permitido,
+      horarioRetornoPermitido: row.resident.horario_retorno_permitido,
+      createdAt: row.resident.created_at,
+    } : undefined,
+  }));
+}
+
+export async function saveWeekendExit(exit: WeekendExit): Promise<void> {
+  const { data: existingData } = await supabase.from('weekend_exits').select('*').eq('id', exit.id).maybeSingle();
+  const isUpdate = !!existingData;
+  
+  const { error } = await supabase.from('weekend_exits').upsert({
+    id: exit.id,
+    resident_id: exit.residentId,
+    data_saida: exit.dataSaida,
+    hora_saida: exit.horaSaida,
+    data_retorno_prevista: exit.dataRetornoPrevista || null,
+    hora_retorno_prevista: exit.horaRetornoPrevista || null,
+    hora_retorno_real: exit.horaRetornoReal || null,
+    acompanhante: exit.acompanhante,
+    observacoes: exit.observacoes,
+  });
+  if (error) throw error;
+  
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'weekend_exits',
+    recordId: exit.id,
+    oldData: existingData ? { data_saida: existingData.data_saida, hora_retorno_real: existingData.hora_retorno_real } : null,
+    newData: { data_saida: exit.dataSaida, hora_saida: exit.horaSaida, acompanhante: exit.acompanhante },
+  });
+}
+
+export async function deleteWeekendExit(id: string): Promise<void> {
+  const { data: existing } = await supabase.from('weekend_exits').select('*').eq('id', id).maybeSingle();
+  
+  const { error } = await supabase.from('weekend_exits').delete().eq('id', id);
+  if (error) throw error;
+  
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'weekend_exits',
+    recordId: id,
+    oldData: existing ? { data_saida: existing.data_saida, acompanhante: existing.acompanhante } : null,
   });
 }
 

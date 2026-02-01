@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
+import { Calendar } from 'lucide-react';
+
 const allNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/entrada', icon: DoorOpen, label: 'Registrar Entrada', roles: ['admin', 'operador'] },
@@ -13,7 +15,8 @@ const allNavItems = [
   { to: '/cadastro', icon: UserPlus, label: 'Novo Cadastro', roles: ['admin', 'operador'] },
   { to: '/idosos', icon: Home, label: 'Idosos', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/saidas-idosos', icon: LogOut, label: 'Saída Temporária', roles: ['admin', 'operador', 'visualizador'] },
-  { to: '/frota', icon: Truck, label: 'Frota', roles: ['admin', 'operador', 'visualizador'] },
+  { to: '/saidas-fim-semana', icon: Calendar, label: 'Saídas Fim de Semana', roles: ['admin', 'operador', 'visualizador'] },
+  { to: '/frota', icon: Truck, label: 'Frota', roles: ['admin', 'operador'] },
   { to: '/historico', icon: History, label: 'Histórico', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/relatorios', icon: FileText, label: 'Relatórios', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/configuracoes', icon: Settings, label: 'Configurações', roles: ['admin'] },

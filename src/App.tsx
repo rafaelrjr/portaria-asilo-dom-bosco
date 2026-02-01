@@ -11,6 +11,7 @@ import Visitors from "./pages/Visitors";
 import Register from "./pages/Register";
 import Residents from "./pages/Residents";
 import ResidentExits from "./pages/ResidentExits";
+import WeekendExits from "./pages/WeekendExits";
 import Fleet from "./pages/Fleet";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
@@ -56,6 +57,7 @@ function AppRoutes() {
       <Route path="/cadastro" element={<ProtectedRoute><Register /></ProtectedRoute>} />
       <Route path="/idosos" element={<ProtectedRoute><Residents /></ProtectedRoute>} />
       <Route path="/saidas-idosos" element={<ProtectedRoute><ResidentExits /></ProtectedRoute>} />
+      <Route path="/saidas-fim-semana" element={<ProtectedRoute><WeekendExits /></ProtectedRoute>} />
       <Route path="/frota" element={<ProtectedRoute><Fleet /></ProtectedRoute>} />
       <Route path="/historico" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

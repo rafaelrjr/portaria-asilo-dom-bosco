@@ -78,6 +78,8 @@ const institutionSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   horarioVisitaInicio: z.string().optional(),
   horarioVisitaFim: z.string().optional(),
+  horarioEnfermariaInicio: z.string().optional(),
+  horarioEnfermariaFim: z.string().optional(),
 });
 
 type InstitutionFormData = z.infer<typeof institutionSchema>;
@@ -114,7 +116,13 @@ export default function Settings() {
     formState: { errors: institutionErrors },
   } = useForm<InstitutionFormData>({
     resolver: zodResolver(institutionSchema),
-    defaultValues: { nome: 'Asilo Dom Bosco', horarioVisitaInicio: '08:00', horarioVisitaFim: '17:00' },
+    defaultValues: { 
+      nome: 'Asilo Dom Bosco', 
+      horarioVisitaInicio: '08:00', 
+      horarioVisitaFim: '17:00',
+      horarioEnfermariaInicio: '14:30',
+      horarioEnfermariaFim: '16:00',
+    },
   });
 
   const {
@@ -149,6 +157,8 @@ export default function Settings() {
         setInstitutionValue('email', institutionData.email || '');
         setInstitutionValue('horarioVisitaInicio', institutionData.horarioVisitaInicio || '08:00');
         setInstitutionValue('horarioVisitaFim', institutionData.horarioVisitaFim || '17:00');
+        setInstitutionValue('horarioEnfermariaInicio', institutionData.horarioEnfermariaInicio || '14:30');
+        setInstitutionValue('horarioEnfermariaFim', institutionData.horarioEnfermariaFim || '16:00');
       }
 
       // Load users from profiles and user_roles
@@ -212,6 +222,8 @@ export default function Settings() {
         email: data.email || '',
         horarioVisitaInicio: data.horarioVisitaInicio || '08:00',
         horarioVisitaFim: data.horarioVisitaFim || '17:00',
+        horarioEnfermariaInicio: data.horarioEnfermariaInicio || '14:30',
+        horarioEnfermariaFim: data.horarioEnfermariaFim || '16:00',
         logo,
       };
       await saveInstitutionSettings(settings);
@@ -638,6 +650,31 @@ export default function Settings() {
                         type="time"
                         {...registerInstitution('horarioVisitaFim')}
                       />
+                    </div>
+
+                    <div className="md:col-span-2 mt-4 pt-4 border-t">
+                      <h4 className="font-medium mb-4 text-muted-foreground">Horário de Visita à Enfermaria</h4>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="horarioEnfermariaInicio">Horário Enfermaria - Início</Label>
+                          <Input
+                            id="horarioEnfermariaInicio"
+                            type="time"
+                            {...registerInstitution('horarioEnfermariaInicio')}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="horarioEnfermariaFim">Horário Enfermaria - Fim</Label>
+                          <Input
+                            id="horarioEnfermariaFim"
+                            type="time"
+                            {...registerInstitution('horarioEnfermariaFim')}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Define o horário de visita para idosos que estão na enfermaria.
+                      </p>
                     </div>
                   </div>
 
