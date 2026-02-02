@@ -63,6 +63,8 @@ export function getVisitorTypeLabel(type: string): string {
     voluntario: 'Voluntário',
     diretoria: 'Diretoria',
     visita_religiosa: 'Visita Religiosa',
+    psc: 'PSC',
+    voluntariado: 'Voluntariado',
     outro: 'Outro',
   };
   return labels[type] || type;
@@ -75,6 +77,9 @@ export function getVisitPurposeLabel(purpose: string): string {
     visita_geral: 'Visita Geral',
     reuniao: 'Reunião',
     prestacao_servico: 'Prestação de Serviço',
+    visita_religiosa: 'Visita Religiosa',
+    psc: 'PSC',
+    voluntariado: 'Voluntariado',
   };
   return labels[purpose] || purpose;
 }

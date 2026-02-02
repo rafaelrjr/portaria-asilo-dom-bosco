@@ -277,6 +277,9 @@ export function EntryForm() {
                         <SelectItem value="visita_geral">Visita Geral</SelectItem>
                         <SelectItem value="reuniao">Reunião</SelectItem>
                         <SelectItem value="prestacao_servico">Prestação de Serviço</SelectItem>
+                        <SelectItem value="visita_religiosa">Visita Religiosa</SelectItem>
+                        <SelectItem value="psc">PSC</SelectItem>
+                        <SelectItem value="voluntariado">Voluntariado</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
