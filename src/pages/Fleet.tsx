@@ -60,7 +60,7 @@ export default function Fleet() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Data</TableHead><TableHead>Veículo</TableHead><TableHead>Placa</TableHead><TableHead>Motorista</TableHead><TableHead>Saída</TableHead><TableHead>Chegada</TableHead><TableHead>KM Percorrido</TableHead><TableHead>Status</TableHead>
+                        <TableHead>Data</TableHead><TableHead>Veículo</TableHead><TableHead>Placa</TableHead><TableHead>Motorista</TableHead><TableHead>Destino</TableHead><TableHead>Saída</TableHead><TableHead>Chegada</TableHead><TableHead>KM Percorrido</TableHead><TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -70,6 +70,7 @@ export default function Fleet() {
                           <TableCell className="font-medium">{trip.veiculo}</TableCell>
                           <TableCell>{trip.placa}</TableCell>
                           <TableCell>{trip.motorista}</TableCell>
+                          <TableCell>{trip.destino || '-'}</TableCell>
                           <TableCell>{trip.horaSaida} ({trip.kmSaida} km)</TableCell>
                           <TableCell>{trip.horaChegada ? `${trip.horaChegada} (${trip.kmChegada} km)` : '-'}</TableCell>
                           <TableCell>{trip.kmChegada ? trip.kmChegada - trip.kmSaida : '-'} km</TableCell>

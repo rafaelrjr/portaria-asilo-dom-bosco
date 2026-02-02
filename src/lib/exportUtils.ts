@@ -1,6 +1,6 @@
 import { Visit, VehicleTrip, ResidentExit, Person, Resident, InstitutionSettings } from '@/types';
 import { formatDate, getVisitorTypeLabel, getVisitPurposeLabel } from './utils';
-import { getInstitutionSettings } from './storage';
+import { getInstitutionSettings } from './supabaseDb';
 import * as XLSX from 'xlsx';
 
 // Export to CSV

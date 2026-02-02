@@ -80,8 +80,19 @@ function addFooter(doc: jsPDF) {
 }
 
 export function generateVisitsReportPDF(visits: Visit[], settings?: InstitutionSettings | null) {
-  const doc = new jsPDF();
+  const doc = new jsPDF('landscape');
   const startY = addHeader(doc, 'Relatório de Visitas', settings);
+
+  const purposeLabels: Record<string, string> = {
+    idoso_especifico: 'Visita a Idoso',
+    acao_social: 'Ação Social',
+    visita_geral: 'Visita Geral',
+    reuniao: 'Reunião',
+    prestacao_servico: 'Prestação de Serviço',
+    visita_religiosa: 'Visita Religiosa',
+    psc: 'PSC',
+    voluntariado: 'Voluntariado',
+  };
 
   const tableData = visits.map((v) => [
     v.dataEntrada,
@@ -90,16 +101,13 @@ export function generateVisitsReportPDF(visits: Visit[], settings?: InstitutionS
     v.pessoa?.nome || '-',
     v.pessoa?.cpf || '-',
     v.idoso?.nome || '-',
-    v.proposito === 'idoso_especifico' ? 'Visita a Idoso' :
-    v.proposito === 'acao_social' ? 'Ação Social' :
-    v.proposito === 'visita_geral' ? 'Visita Geral' :
-    v.proposito === 'reuniao' ? 'Reunião' :
-    v.proposito === 'prestacao_servico' ? 'Prestação de Serviço' : v.proposito,
+    purposeLabels[v.proposito] || v.proposito,
+    v.observacoes || '-',
   ]);
 
   autoTable(doc, {
     startY,
-    head: [['Data', 'Entrada', 'Saída', 'Visitante', 'CPF', 'Idoso', 'Propósito']],
+    head: [['Data', 'Entrada', 'Saída', 'Visitante', 'CPF', 'Idoso', 'Propósito', 'Observações']],
     body: tableData,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [59, 130, 246] },
@@ -175,6 +183,9 @@ export function generatePersonsReportPDF(persons: Person[], residents: Resident[
     visita_geral: 'Visita Geral',
     voluntario: 'Voluntário',
     diretoria: 'Diretoria',
+    visita_religiosa: 'Visita Religiosa',
+    psc: 'PSC',
+    voluntariado: 'Voluntariado',
     outro: 'Outro',
   };
 

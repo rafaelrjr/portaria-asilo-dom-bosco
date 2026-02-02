@@ -85,13 +85,15 @@ export default function Residents() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div><h1 className="font-display text-3xl font-bold tracking-tight">Idosos Residentes</h1><p className="text-muted-foreground">Gerencie os idosos residentes</p></div>
-          {canEdit && (
-            <div className="flex gap-2">
-              <input ref={importInputRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
-              <Button variant="outline" onClick={() => importInputRef.current?.click()} className="gap-2"><Upload className="h-4 w-4" />Importar</Button>
-              <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Idoso</Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            {canEdit && (
+              <>
+                <input ref={importInputRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
+                <Button variant="outline" onClick={() => importInputRef.current?.click()} className="gap-2"><Upload className="h-4 w-4" />Importar</Button>
+              </>
+            )}
+            <Button onClick={() => setShowNewForm(true)} className="gap-2"><Plus className="h-4 w-4" />Novo Idoso</Button>
+          </div>
         </div>
         <Card>
           <CardHeader>

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getVisits, getResidents, saveVisit } from '@/lib/storage';
+import { getVisits, getResidents, saveVisit } from '@/lib/supabaseDb';
 import { formatDate, getCurrentTime, getVisitPurposeLabel } from '@/lib/utils';
 import { Visit, Resident } from '@/types';
 import { History as HistoryIcon, Search, LogOut, Printer, Filter } from 'lucide-react';
@@ -78,7 +78,7 @@ export default function History() {
             {filteredVisits.length === 0 ? <p className="text-center text-muted-foreground py-8">Nenhuma visita encontrada</p> : (
               <div className="rounded-lg border overflow-x-auto">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Visitante</TableHead><TableHead>Data</TableHead><TableHead>Entrada</TableHead><TableHead>Saída</TableHead><TableHead>Propósito</TableHead><TableHead>Idoso</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Visitante</TableHead><TableHead>Data</TableHead><TableHead>Entrada</TableHead><TableHead>Saída</TableHead><TableHead>Propósito</TableHead><TableHead>Idoso</TableHead><TableHead>Observações</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredVisits.map((visit) => (
                       <TableRow key={visit.id}>
@@ -88,6 +88,7 @@ export default function History() {
                         <TableCell>{visit.horaSaida || '-'}</TableCell>
                         <TableCell><Badge variant="outline">{getVisitPurposeLabel(visit.proposito)}</Badge></TableCell>
                         <TableCell>{visit.idoso ? <span>{visit.idoso.nome} {visit.idoso.quarto && <span className="text-muted-foreground">(Q.{visit.idoso.quarto})</span>}</span> : '-'}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={visit.observacoes || ''}>{visit.observacoes || '-'}</TableCell>
                         <TableCell>{visit.horaSaida ? <Badge variant="secondary">Finalizada</Badge> : <Badge variant="default" className="animate-pulse-soft">No local</Badge>}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">

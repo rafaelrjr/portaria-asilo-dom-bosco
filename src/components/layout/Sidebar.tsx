@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, UserPlus, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Settings, ScrollText, Menu, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, DoorOpen, History, Home, ChevronLeft, ChevronRight, Truck, LogOut, Settings, ScrollText, Menu, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -12,7 +12,6 @@ const allNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/entrada', icon: DoorOpen, label: 'Registrar Entrada', roles: ['admin', 'operador'] },
   { to: '/visitantes', icon: Users, label: 'Visitantes', roles: ['admin', 'operador', 'visualizador'] },
-  { to: '/cadastro', icon: UserPlus, label: 'Novo Cadastro', roles: ['admin', 'operador'] },
   { to: '/idosos', icon: Home, label: 'Idosos', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/saidas-idosos', icon: LogOut, label: 'Saída Temporária', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/saidas-fim-semana', icon: Calendar, label: 'Saídas Fim de Semana', roles: ['admin', 'operador', 'visualizador'] },
