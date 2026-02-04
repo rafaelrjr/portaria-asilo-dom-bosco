@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ResidentExit, Resident } from '@/types';
-import { saveResidentExit, getActiveResidentExits, getResidents } from '@/lib/storage';
+import { saveResidentExit, getActiveResidentExits, getResidents } from '@/lib/supabaseDb';
 import { generateId, getCurrentDate, getCurrentTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

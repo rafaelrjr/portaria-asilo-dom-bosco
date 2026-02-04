@@ -1,6 +1,6 @@
 import { Visit } from '@/types';
 import { formatDate, getVisitPurposeLabel } from '@/lib/utils';
-import { getInstitutionSettings } from '@/lib/storage';
+import { getInstitutionSettings } from '@/lib/supabaseDb';
 
 // Function to print label directly without dialog
 export async function printVisitorLabelDirect(visit: Visit): Promise<void> {

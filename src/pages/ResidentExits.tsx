@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ResidentExitForm } from '@/components/forms/ResidentExitForm';
-import { getResidentExits } from '@/lib/storage';
+import { getResidentExits } from '@/lib/supabaseDb';
 import { exportResidentExitsReport } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/utils';
 import { ResidentExit } from '@/types';

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { getActiveVisits, getActiveResidentExits, getPersonById } from '@/lib/storage';
+import { getActiveVisits, getActiveResidentExits, getPersonById } from '@/lib/supabaseDb';
 import { VISITING_HOURS, Visit, ResidentExit, Person } from '@/types';
 import { getCurrentTime } from '@/lib/utils';
 import { AlertTriangle, Clock, UserX, X, Volume2, VolumeX } from 'lucide-react';

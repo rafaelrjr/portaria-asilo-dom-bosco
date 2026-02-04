@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,14 +21,50 @@ import {
   generateResidentExitsReportPDF,
   generateResidentsReportPDF,
 } from '@/lib/pdfUtils';
-import { FileText, FileSpreadsheet, Users, Home, Truck, DoorOpen } from 'lucide-react';
+import { FileText, FileSpreadsheet, Users, Home, Truck, DoorOpen, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { getLocalDataCounts, migrateLocalDataToBackend, type LocalDataCounts } from '@/lib/migrateLocalToBackend';
 
 export default function Reports() {
   const [exportingVisits, setExportingVisits] = useState(false);
   const [exportingResidents, setExportingResidents] = useState(false);
   const [exportingTrips, setExportingTrips] = useState(false);
   const [exportingExits, setExportingExits] = useState(false);
+  const [localCounts, setLocalCounts] = useState<LocalDataCounts | null>(null);
+  const [backendCounts, setBackendCounts] = useState<{ visits: number; exits: number } | null>(null);
+  const [migrating, setMigrating] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [local, visits, exits] = await Promise.all([
+          getLocalDataCounts(),
+          getVisits(),
+          getResidentExits(),
+        ]);
+        setLocalCounts(local);
+        setBackendCounts({ visits: visits.length, exits: exits.length });
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, []);
+
+  async function handleMigrateLocalData() {
+    setMigrating(true);
+    try {
+      const result = await migrateLocalDataToBackend();
+      toast.success(`Migração concluída: ${result.visits} visita(s) e ${result.residentExits} saída(s) temporária(s)`);
+      const [visits, exits, local] = await Promise.all([getVisits(), getResidentExits(), getLocalDataCounts()]);
+      setBackendCounts({ visits: visits.length, exits: exits.length });
+      setLocalCounts(local);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao migrar dados locais');
+    } finally {
+      setMigrating(false);
+    }
+  }
 
   async function handleExportVisitsPDF() {
     setExportingVisits(true);
@@ -173,6 +209,30 @@ export default function Reports() {
           <h1 className="font-display text-3xl font-bold tracking-tight">Relatórios</h1>
           <p className="text-muted-foreground">Exporte relatórios em PDF ou Excel</p>
         </div>
+
+        {localCounts && backendCounts && (
+          (localCounts.visits > 0 && backendCounts.visits === 0) ||
+          (localCounts.residentExits > 0 && backendCounts.exits === 0)
+        ) && (
+          <Card className="border-warning/50 bg-warning/5">
+            <CardHeader>
+              <CardTitle>Dados locais encontrados</CardTitle>
+              <CardDescription>
+                Existem registros salvos no dispositivo que ainda não estão no backend (isso faz os relatórios saírem vazios).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                <div>Visitas locais: <span className="font-medium text-foreground">{localCounts.visits}</span></div>
+                <div>Saídas temporárias locais: <span className="font-medium text-foreground">{localCounts.residentExits}</span></div>
+              </div>
+              <Button onClick={handleMigrateLocalData} disabled={migrating} className="gap-2">
+                <RefreshCw className={`h-4 w-4 ${migrating ? 'animate-spin' : ''}`} />
+                {migrating ? 'Migrando...' : 'Migrar dados locais'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
