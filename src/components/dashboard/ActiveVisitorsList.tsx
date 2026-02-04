@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getActiveVisits, saveVisit } from '@/lib/storage';
+import { getActiveVisits, saveVisit } from '@/lib/supabaseDb';
 import { Visit } from '@/types';
 import { getCurrentTime, getVisitPurposeLabel } from '@/lib/utils';
 import { LogOut, Clock, User, Printer } from 'lucide-react';

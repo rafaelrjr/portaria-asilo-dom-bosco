@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getPersons, deletePerson, getResidentById } from '@/lib/storage';
+import { getPersons, deletePerson, getResidentById } from '@/lib/supabaseDb';
 import { getVisitorTypeLabel } from '@/lib/utils';
 import { Person, Resident } from '@/types';
 import { PersonForm } from '@/components/forms/PersonForm';

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getActiveVisits, getActiveResidentExits, getInstitutionSettings } from '@/lib/storage';
+import { getActiveVisits, getActiveResidentExits, getInstitutionSettings } from '@/lib/supabaseDb';
 import { getCurrentTime } from '@/lib/utils';
 import { AlertTriangle, Clock, UserX, Home } from 'lucide-react';
 import { Visit, ResidentExit, InstitutionSettings } from '@/types';

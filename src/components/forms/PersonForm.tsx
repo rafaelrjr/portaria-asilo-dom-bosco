@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Person, VisitorType, DayOfWeek, DAYS_OF_WEEK, Resident } from '@/types';
-import { savePerson, getResidents } from '@/lib/storage';
+import { savePerson, getResidents } from '@/lib/supabaseDb';
 import { formatCPF, formatPhone, formatRG, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

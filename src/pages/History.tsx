@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { getVisits, getResidents, saveVisit } from '@/lib/supabaseDb';
 import { formatDate, getCurrentTime, getVisitPurposeLabel } from '@/lib/utils';
 import { Visit, Resident } from '@/types';
-import { History as HistoryIcon, Search, LogOut, Printer, Filter } from 'lucide-react';
+import { History as HistoryIcon, Search, LogOut, Printer, Filter, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { printVisitorLabelDirect } from '@/components/visitors/VisitorLabel';
+import { getLocalDataCounts, migrateLocalDataToBackend, type LocalDataCounts } from '@/lib/migrateLocalToBackend';
 
 export default function History() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -22,8 +23,22 @@ export default function History() {
   const [endDate, setEndDate] = useState('');
   const [selectedResident, setSelectedResident] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [localCounts, setLocalCounts] = useState<LocalDataCounts | null>(null);
+  const [migrating, setMigrating] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    loadLocalCounts();
+  }, []);
+
+  async function loadLocalCounts() {
+    try {
+      const counts = await getLocalDataCounts();
+      setLocalCounts(counts);
+    } catch {
+      // ignore (e.g. indexedDB unavailable)
+    }
+  }
 
   async function loadData() {
     const visitsData = await getVisits();
@@ -43,6 +58,21 @@ export default function History() {
     await printVisitorLabelDirect(visit);
   }
 
+  async function handleMigrateLocalData() {
+    setMigrating(true);
+    try {
+      const result = await migrateLocalDataToBackend();
+      toast.success(`Migração concluída: ${result.visits} visita(s) e ${result.residentExits} saída(s) temporária(s)`);
+      await loadData();
+      await loadLocalCounts();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao migrar dados locais');
+    } finally {
+      setMigrating(false);
+    }
+  }
+
   function clearFilters() { setSearchQuery(''); setStartDate(''); setEndDate(''); setSelectedResident(''); setStatusFilter('all'); }
 
   const filteredVisits = visits.filter((visit) => {
@@ -59,6 +89,27 @@ export default function History() {
     <Layout>
       <div className="space-y-6">
         <div><h1 className="font-display text-3xl font-bold tracking-tight">Histórico de Visitas</h1><p className="text-muted-foreground">Consulte o histórico completo de visitas</p></div>
+
+        {localCounts && localCounts.visits > 0 && visits.length === 0 && (
+          <Card className="border-warning/50 bg-warning/5">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span>Dados locais encontrados</span>
+                <Badge variant="secondary">{localCounts.visits} visita(s)</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                As visitas foram salvas no dispositivo e ainda não estão no backend. Migre para que apareçam no Histórico e nos Relatórios.
+              </p>
+              <Button onClick={handleMigrateLocalData} disabled={migrating} className="gap-2">
+                <RefreshCw className={`h-4 w-4 ${migrating ? 'animate-spin' : ''}`} />
+                {migrating ? 'Migrando...' : 'Migrar agora'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Filter className="h-5 w-5 text-primary" />Filtros</CardTitle></CardHeader>
           <CardContent>
@@ -108,3 +159,4 @@ export default function History() {
     </Layout>
   );
 }
+

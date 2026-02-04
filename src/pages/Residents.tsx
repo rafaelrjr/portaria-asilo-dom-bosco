@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getResidents, deleteResident, initializeSampleData, importResidentsFromJSON, importResidentsFromCSV } from '@/lib/storage';
+import { getResidents, deleteResident, importResidentsFromJSON, importResidentsFromCSV } from '@/lib/supabaseDb';
 import { Resident } from '@/types';
 import { ResidentForm } from '@/components/forms/ResidentForm';
 import { Home, Search, Edit, Trash2, Plus, Upload } from 'lucide-react';
@@ -22,11 +22,7 @@ export default function Residents() {
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function init() {
-      await initializeSampleData();
-      loadResidents();
-    }
-    init();
+    loadResidents();
   }, []);
 
   async function loadResidents() {

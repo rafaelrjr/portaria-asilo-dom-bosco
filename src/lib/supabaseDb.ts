@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, WeekendExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek, AuditLog } from '@/types';
+import { formatCPF } from '@/lib/utils';
 
 // ==================== AUDIT LOGS ====================
 export async function createAuditLog(params: {
@@ -110,6 +111,12 @@ export async function getResidents(): Promise<Resident[]> {
   }));
 }
 
+// Backwards-compatible alias used by some UI modules
+export async function getResidentById(id: string): Promise<Resident | undefined> {
+  const resident = await getResident(id);
+  return resident ?? undefined;
+}
+
 export async function getResident(id: string): Promise<Resident | null> {
   const { data, error } = await supabase
     .from('residents')
@@ -188,6 +195,81 @@ export async function getPersons(): Promise<Person[]> {
     .from('persons')
     .select('*')
     .order('nome');
+
+  if (error) throw error;
+  return (data || []).map(row => ({
+    id: row.id,
+    nome: row.nome,
+    cpf: row.cpf,
+    rg: row.rg,
+    telefone: row.telefone,
+    tipo: row.tipo as VisitorType,
+    parentesco: row.parentesco,
+    idosoVinculado: row.idoso_vinculado,
+    observacoes: row.observacoes,
+    foto: row.foto,
+    horarioEspecial: row.horario_especial ?? false,
+    horarioEspecialInicio: row.horario_especial_inicio,
+    horarioEspecialFim: row.horario_especial_fim,
+    diasPermitidos: (row.dias_permitidos || []) as DayOfWeek[],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function getPersonById(id: string): Promise<Person | null> {
+  const { data, error } = await supabase
+    .from('persons')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    nome: data.nome,
+    cpf: data.cpf,
+    rg: data.rg,
+    telefone: data.telefone,
+    tipo: data.tipo as VisitorType,
+    parentesco: data.parentesco,
+    idosoVinculado: data.idoso_vinculado,
+    observacoes: data.observacoes,
+    foto: data.foto,
+    horarioEspecial: data.horario_especial ?? false,
+    horarioEspecialInicio: data.horario_especial_inicio,
+    horarioEspecialFim: data.horario_especial_fim,
+    diasPermitidos: (data.dias_permitidos || []) as DayOfWeek[],
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+export async function searchPersons(query: string, limit = 10): Promise<Person[]> {
+  const q = query.trim();
+  if (!q) return [];
+
+  // Help CPF searching when user types only digits
+  const digitsOnly = q.replace(/\D/g, '');
+  const cpfFormatted = digitsOnly.length >= 11 ? formatCPF(digitsOnly) : undefined;
+
+  const orParts = [
+    `nome.ilike.%${q}%`,
+    `cpf.ilike.%${q}%`,
+    `rg.ilike.%${q}%`,
+  ];
+  if (cpfFormatted && cpfFormatted !== q) {
+    orParts.push(`cpf.ilike.%${cpfFormatted}%`);
+  }
+
+  const { data, error } = await supabase
+    .from('persons')
+    .select('*')
+    .or(orParts.join(','))
+    .order('nome')
+    .limit(limit);
 
   if (error) throw error;
   return (data || []).map(row => ({
@@ -347,7 +429,6 @@ export async function getVisits(): Promise<Visit[]> {
 }
 
 export async function getActiveVisits(): Promise<Visit[]> {
-  const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('visits')
     .select(`
@@ -355,8 +436,8 @@ export async function getActiveVisits(): Promise<Visit[]> {
       pessoa:persons(*),
       idoso:residents(*)
     `)
-    .eq('data_entrada', today)
     .is('hora_saida', null)
+    .order('data_entrada', { ascending: false })
     .order('hora_entrada', { ascending: false });
 
   if (error) throw error;
@@ -679,6 +760,130 @@ export async function getResidentExits(): Promise<ResidentExit[]> {
       createdAt: row.resident.created_at,
     } : undefined,
   }));
+}
+
+export async function getActiveResidentExits(): Promise<ResidentExit[]> {
+  const { data, error } = await supabase
+    .from('resident_exits')
+    .select(`
+      *,
+      resident:residents(*)
+    `)
+    .is('hora_retorno_real', null)
+    .order('data_saida', { ascending: false })
+    .order('hora_saida', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(row => ({
+    id: row.id,
+    residentId: row.resident_id,
+    dataSaida: row.data_saida,
+    horaSaida: row.hora_saida,
+    horaRetornoPrevista: row.hora_retorno_prevista,
+    horaRetornoReal: row.hora_retorno_real,
+    motivoSaida: row.motivo_saida,
+    acompanhante: row.acompanhante,
+    observacoes: row.observacoes,
+    createdAt: row.created_at,
+    resident: row.resident ? {
+      id: row.resident.id,
+      nome: row.resident.nome,
+      quarto: row.resident.quarto,
+      foto: row.resident.foto,
+      observacoes: row.resident.observacoes,
+      ativo: row.resident.ativo ?? true,
+      autorizadoSaidaTemporaria: row.resident.autorizado_saida_temporaria ?? false,
+      diasSaidaPermitidos: (row.resident.dias_saida_permitidos || []) as DayOfWeek[],
+      horarioSaidaPermitido: row.resident.horario_saida_permitido,
+      horarioRetornoPermitido: row.resident.horario_retorno_permitido,
+      createdAt: row.resident.created_at,
+    } : undefined,
+  }));
+}
+
+export async function importResidentsFromJSON(jsonData: string): Promise<{ success: number; errors: number }> {
+  try {
+    const data = JSON.parse(jsonData);
+    const residents = Array.isArray(data) ? data : data.residents || [];
+    let success = 0;
+    let errors = 0;
+
+    for (const r of residents) {
+      try {
+        if (r.nome) {
+          const resident: Resident = {
+            id: r.id || crypto.randomUUID(),
+            nome: r.nome,
+            quarto: r.quarto || '',
+            cpf: r.cpf,
+            dataNascimento: r.dataNascimento,
+            foto: r.foto,
+            observacoes: r.observacoes,
+            ativo: r.ativo !== undefined ? r.ativo : true,
+            autorizadoSaidaTemporaria: r.autorizadoSaidaTemporaria || false,
+            diasSaidaPermitidos: r.diasSaidaPermitidos,
+            horarioSaidaPermitido: r.horarioSaidaPermitido,
+            horarioRetornoPermitido: r.horarioRetornoPermitido,
+            createdAt: r.createdAt || new Date().toISOString(),
+          };
+          await saveResident(resident);
+          success++;
+        } else {
+          errors++;
+        }
+      } catch {
+        errors++;
+      }
+    }
+
+    return { success, errors };
+  } catch {
+    return { success: 0, errors: 1 };
+  }
+}
+
+export async function importResidentsFromCSV(csvData: string): Promise<{ success: number; errors: number }> {
+  try {
+    const lines = csvData.split('\n').filter(l => l.trim());
+    if (lines.length < 2) return { success: 0, errors: 0 };
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    let success = 0;
+    let errors = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const record: Record<string, string> = {};
+        headers.forEach((h, idx) => {
+          record[h] = values[idx] || '';
+        });
+
+        const nome = record.nome || record.name || record['nome completo'];
+        if (nome) {
+          const resident: Resident = {
+            id: crypto.randomUUID(),
+            nome,
+            quarto: record.quarto || record.room || '',
+            observacoes: record.observacoes || record.obs || '',
+            ativo: true,
+            autorizadoSaidaTemporaria: false,
+            createdAt: new Date().toISOString(),
+          };
+          await saveResident(resident);
+          success++;
+        } else {
+          errors++;
+        }
+      } catch {
+        errors++;
+      }
+    }
+
+    return { success, errors };
+  } catch {
+    return { success: 0, errors: 1 };
+  }
 }
 
 export async function getPendingResidentExits(): Promise<ResidentExit[]> {
