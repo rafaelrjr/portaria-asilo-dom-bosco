@@ -132,7 +132,53 @@ export async function getDB(): Promise<IDBPDatabase<AppDB>> {
   return dbInstance;
 }
 
-// Simple hash for offline password storage
+// Generate a cryptographically secure random salt
+function generateSalt(): string {
+  const saltBytes = new Uint8Array(16);
+  crypto.getRandomValues(saltBytes);
+  return btoa(String.fromCharCode(...saltBytes));
+}
+
+// Secure password hashing using PBKDF2 with Web Crypto API
+export async function hashPassword(password: string, salt?: string): Promise<{ hash: string; salt: string }> {
+  const usedSalt = salt || generateSalt();
+  const encoder = new TextEncoder();
+  const passwordData = encoder.encode(password);
+  const saltData = encoder.encode(usedSalt);
+  
+  const key = await crypto.subtle.importKey(
+    'raw',
+    passwordData,
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltData,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    key,
+    256
+  );
+  
+  const hashArray = new Uint8Array(derivedBits);
+  const hash = btoa(String.fromCharCode(...hashArray));
+  
+  return { hash, salt: usedSalt };
+}
+
+// Verify password against stored hash and salt
+export async function verifyPassword(password: string, storedHash: string, salt: string): Promise<boolean> {
+  const { hash } = await hashPassword(password, salt);
+  return hash === storedHash;
+}
+
+// Legacy simple hash for backward compatibility (deprecated - do not use for new passwords)
+// @deprecated Use hashPassword instead
 export function simpleHash(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -167,9 +213,26 @@ export async function getUserByUsername(username: string): Promise<User | undefi
 
 export async function authenticateUser(username: string, password: string): Promise<User | null> {
   const user = await getUserByUsername(username);
-  if (user && user.ativo && user.password === simpleHash(password)) {
+  if (!user || !user.ativo) {
+    return null;
+  }
+  
+  // Check if user has new-style password with salt
+  if (user.salt && user.password) {
+    const isValid = await verifyPassword(password, user.password, user.salt);
+    return isValid ? user : null;
+  }
+  
+  // Legacy fallback for old passwords (will be migrated on next login)
+  if (user.password === simpleHash(password)) {
+    // Migrate to new secure hash on successful legacy login
+    const { hash, salt } = await hashPassword(password);
+    user.password = hash;
+    user.salt = salt;
+    await saveUser(user);
     return user;
   }
+  
   return null;
 }
 
@@ -518,6 +581,13 @@ export async function createBackup(type: 'auto' | 'manual' = 'auto'): Promise<Ba
     getInstitutionSettings(),
   ]);
 
+  // Protect password hashes in internal backups - only store non-sensitive user data
+  const protectedUsers = users.map(u => ({
+    ...u,
+    password: '[PROTEGIDO]',
+    salt: '[PROTEGIDO]'
+  }));
+
   const data = JSON.stringify({
     persons,
     residents,
@@ -525,7 +595,7 @@ export async function createBackup(type: 'auto' | 'manual' = 'auto'): Promise<Ba
     vehicleTrips,
     residentExits: rawExits,
     vehicles,
-    users, // Include users with password hashes for internal backup
+    users: protectedUsers, // Password hashes are now protected in internal backups
     institution,
     exportedAt: new Date().toISOString(),
   });

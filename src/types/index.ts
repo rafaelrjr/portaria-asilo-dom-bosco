@@ -19,7 +19,8 @@ export const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
 export interface User {
   id: string;
   username: string;
-  password: string; // Hash simples para sistema offline
+  password: string; // PBKDF2 hash para sistema offline
+  salt?: string; // Salt for PBKDF2 password hashing
   nome: string;
   role: UserRole;
   email?: string; // Obrigatório apenas para admin
