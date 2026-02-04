@@ -1,7 +1,7 @@
 import { Visit, VehicleTrip, ResidentExit, Person, Resident, InstitutionSettings } from '@/types';
 import { formatDate, getVisitorTypeLabel, getVisitPurposeLabel } from './utils';
 import { getInstitutionSettings } from './supabaseDb';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 // Export to CSV
 export function exportToCSV(data: Record<string, unknown>[], filename: string): void {
@@ -25,27 +25,71 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string): 
   downloadFile(csvContent, `${filename}.csv`, 'text/csv;charset=utf-8;');
 }
 
-// Generic Excel export with header
-async function createExcelWithHeader(data: Record<string, unknown>[], title: string): Promise<XLSX.WorkBook> {
+// Generic Excel export with header using ExcelJS
+async function createExcelWithHeader(data: Record<string, unknown>[], title: string): Promise<ExcelJS.Workbook> {
   const settings = await getInstitutionSettings();
-  const wb = XLSX.utils.book_new();
-  
-  const headerRows: (string | number)[][] = [
-    [settings?.nome || 'Instituição'],
-    [settings?.cnpj ? `CNPJ: ${settings.cnpj}` : ''],
-    [settings?.endereco || ''],
-    [settings?.telefone ? `Tel: ${settings.telefone}${settings?.email ? ` | Email: ${settings.email}` : ''}` : ''],
-    [],
-    [title.toUpperCase()],
-    [`Emitido em: ${new Date().toLocaleString('pt-BR')}`],
-    [],
-  ];
-  
-  const ws = XLSX.utils.aoa_to_sheet(headerRows);
-  XLSX.utils.sheet_add_json(ws, data, { origin: 'A9' });
-  XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
-  
-  return wb;
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Relatório');
+
+  // Add header rows
+  worksheet.addRow([settings?.nome || 'Instituição']);
+  worksheet.addRow([settings?.cnpj ? `CNPJ: ${settings.cnpj}` : '']);
+  worksheet.addRow([settings?.endereco || '']);
+  worksheet.addRow([settings?.telefone ? `Tel: ${settings.telefone}${settings?.email ? ` | Email: ${settings.email}` : ''}` : '']);
+  worksheet.addRow([]);
+  worksheet.addRow([title.toUpperCase()]);
+  worksheet.addRow([`Emitido em: ${new Date().toLocaleString('pt-BR')}`]);
+  worksheet.addRow([]);
+
+  // Add data with headers
+  if (data.length > 0) {
+    const headers = Object.keys(data[0]);
+    worksheet.addRow(headers);
+    
+    // Style header row
+    const headerRow = worksheet.lastRow;
+    if (headerRow) {
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+      });
+    }
+
+    // Add data rows
+    data.forEach(row => {
+      worksheet.addRow(headers.map(h => row[h] ?? ''));
+    });
+
+    // Auto-fit columns
+    worksheet.columns.forEach((column) => {
+      let maxLength = 10;
+      column.eachCell?.({ includeEmpty: true }, (cell) => {
+        const cellValue = cell.value ? String(cell.value) : '';
+        maxLength = Math.max(maxLength, cellValue.length);
+      });
+      column.width = Math.min(maxLength + 2, 50);
+    });
+  }
+
+  return workbook;
+}
+
+// Download Excel workbook
+async function downloadExcelWorkbook(workbook: ExcelJS.Workbook, filename: string): Promise<void> {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // Export Visits Report to Excel
@@ -61,8 +105,8 @@ export async function exportVisitsReportExcel(visits: Visit[]): Promise<void> {
     'Idoso Visitado': v.idoso?.nome || 'N/A',
     'Observações': v.observacoes || '',
   }));
-  const wb = await createExcelWithHeader(data, 'Relatório de Visitas');
-  XLSX.writeFile(wb, `relatorio_visitas_${getCurrentDateForFilename()}.xlsx`);
+  const workbook = await createExcelWithHeader(data, 'Relatório de Visitas');
+  await downloadExcelWorkbook(workbook, `relatorio_visitas_${getCurrentDateForFilename()}.xlsx`);
 }
 
 // Export Residents Report to Excel
@@ -74,8 +118,8 @@ export async function exportResidentsReportExcel(residents: Resident[]): Promise
     'Saída Temporária': r.autorizadoSaidaTemporaria ? 'Autorizado' : 'Não autorizado',
     'Observações': r.observacoes || '',
   }));
-  const wb = await createExcelWithHeader(data, 'Cadastro de Idosos');
-  XLSX.writeFile(wb, `cadastro_idosos_${getCurrentDateForFilename()}.xlsx`);
+  const workbook = await createExcelWithHeader(data, 'Cadastro de Idosos');
+  await downloadExcelWorkbook(workbook, `cadastro_idosos_${getCurrentDateForFilename()}.xlsx`);
 }
 
 // Export Vehicle Trips to Excel
@@ -91,8 +135,8 @@ export async function exportVehicleTripsReportExcel(trips: VehicleTrip[]): Promi
     'KM Chegada': t.kmChegada || 'N/A',
     'KM Percorrido': t.kmChegada ? t.kmChegada - t.kmSaida : 'N/A',
   }));
-  const wb = await createExcelWithHeader(data, 'Relatório de Veículos');
-  XLSX.writeFile(wb, `relatorio_veiculos_${getCurrentDateForFilename()}.xlsx`);
+  const workbook = await createExcelWithHeader(data, 'Relatório de Veículos');
+  await downloadExcelWorkbook(workbook, `relatorio_veiculos_${getCurrentDateForFilename()}.xlsx`);
 }
 
 // Export Resident Exits to Excel
@@ -107,8 +151,8 @@ export async function exportResidentExitsReportExcel(exits: ResidentExit[]): Pro
     'Motivo': e.motivoSaida,
     'Acompanhante': e.acompanhante || '',
   }));
-  const wb = await createExcelWithHeader(data, 'Relatório de Saídas Temporárias');
-  XLSX.writeFile(wb, `relatorio_saidas_${getCurrentDateForFilename()}.xlsx`);
+  const workbook = await createExcelWithHeader(data, 'Relatório de Saídas Temporárias');
+  await downloadExcelWorkbook(workbook, `relatorio_saidas_${getCurrentDateForFilename()}.xlsx`);
 }
 
 function getCurrentDateForFilename(): string {
