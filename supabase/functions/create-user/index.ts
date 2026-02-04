@@ -54,18 +54,48 @@ Deno.serve(async (req) => {
       throw new Error('Missing required fields: nome, email, password, role')
     }
 
+    // Trim whitespace from text fields
+    const trimmedNome = String(nome).trim()
+    const trimmedEmail = String(email).trim().toLowerCase()
+    const trimmedRole = String(role).trim()
+
+    // Validate name length
+    if (trimmedNome.length < 3 || trimmedNome.length > 100) {
+      throw new Error('Name must be between 3 and 100 characters')
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(trimmedEmail)) {
+      throw new Error('Invalid email format')
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters')
+    }
+    if (!/[A-Z]/.test(password)) {
+      throw new Error('Password must contain at least one uppercase letter')
+    }
+    if (!/[a-z]/.test(password)) {
+      throw new Error('Password must contain at least one lowercase letter')
+    }
+    if (!/[0-9]/.test(password)) {
+      throw new Error('Password must contain at least one number')
+    }
+
     // Validate role
     const validRoles = ['admin', 'operador', 'visualizador']
-    if (!validRoles.includes(role)) {
+    if (!validRoles.includes(trimmedRole)) {
       throw new Error('Invalid role')
     }
 
     // Create the user
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: trimmedEmail,
       password,
       email_confirm: true,
-      user_metadata: { nome },
+      user_metadata: { nome: trimmedNome },
     })
 
     if (createError) {
@@ -80,9 +110,9 @@ Deno.serve(async (req) => {
     // Create profile
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       user_id: userData.user.id,
-      username: email.split('@')[0],
-      nome,
-      email,
+      username: trimmedEmail.split('@')[0],
+      nome: trimmedNome,
+      email: trimmedEmail,
       ativo: true,
     })
 
@@ -94,7 +124,7 @@ Deno.serve(async (req) => {
     // Assign role
     const { error: roleError } = await supabaseAdmin.from('user_roles').insert({
       user_id: userData.user.id,
-      role,
+      role: trimmedRole,
     })
 
     if (roleError) {
