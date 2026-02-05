@@ -1097,6 +1097,44 @@ export async function deleteWeekendExit(id: string): Promise<void> {
   });
 }
 
+export async function getActiveWeekendExits(): Promise<WeekendExit[]> {
+  const { data, error } = await supabase
+    .from('weekend_exits')
+    .select(`
+      *,
+      resident:residents(*)
+    `)
+    .is('hora_retorno_real', null)
+    .order('data_saida', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(row => ({
+    id: row.id,
+    residentId: row.resident_id,
+    dataSaida: row.data_saida,
+    horaSaida: row.hora_saida,
+    dataRetornoPrevista: row.data_retorno_prevista,
+    horaRetornoPrevista: row.hora_retorno_prevista,
+    horaRetornoReal: row.hora_retorno_real,
+    acompanhante: row.acompanhante,
+    observacoes: row.observacoes,
+    createdAt: row.created_at,
+    resident: row.resident ? {
+      id: row.resident.id,
+      nome: row.resident.nome,
+      quarto: row.resident.quarto,
+      foto: row.resident.foto,
+      observacoes: row.resident.observacoes,
+      ativo: row.resident.ativo ?? true,
+      autorizadoSaidaTemporaria: row.resident.autorizado_saida_temporaria ?? false,
+      diasSaidaPermitidos: (row.resident.dias_saida_permitidos || []) as DayOfWeek[],
+      horarioSaidaPermitido: row.resident.horario_saida_permitido,
+      horarioRetornoPermitido: row.resident.horario_retorno_permitido,
+      createdAt: row.resident.created_at,
+    } : undefined,
+  }));
+}
+
 // ==================== USER PROFILES & ROLES ====================
 export async function getCurrentUserProfile(): Promise<{ profile: { nome: string; username: string; email: string | null } | null; role: UserRole | null }> {
   const { data: { user } } = await supabase.auth.getUser();
