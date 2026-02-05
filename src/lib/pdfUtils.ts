@@ -239,3 +239,31 @@ export function generateResidentsReportPDF(residents: Resident[], settings?: Ins
   addFooter(doc);
   doc.save(`cadastro_idosos_${new Date().toISOString().split('T')[0]}.pdf`);
 }
+
+export function generateWeekendExitsReportPDF(exits: import('@/types').WeekendExit[], settings?: InstitutionSettings | null) {
+  const doc = new jsPDF('landscape');
+  const startY = addHeader(doc, 'Relatório de Saídas de Fim de Semana', settings);
+
+  const tableData = exits.map((e) => [
+    e.dataSaida,
+    e.resident?.nome || '-',
+    e.resident?.quarto || '-',
+    e.horaSaida,
+    e.dataRetornoPrevista || '-',
+    e.horaRetornoPrevista || '-',
+    e.horaRetornoReal || 'Não retornou',
+    e.acompanhante,
+    e.observacoes || '-',
+  ]);
+
+  autoTable(doc, {
+    startY,
+    head: [['Data Saída', 'Idoso', 'Quarto', 'Hora Saída', 'Data Retorno', 'Hora Prevista', 'Hora Real', 'Acompanhante', 'Observações']],
+    body: tableData,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [59, 130, 246] },
+  });
+
+  addFooter(doc);
+  doc.save(`relatorio_saidas_fim_semana_${new Date().toISOString().split('T')[0]}.pdf`);
+}

@@ -155,6 +155,24 @@ export async function exportResidentExitsReportExcel(exits: ResidentExit[]): Pro
   await downloadExcelWorkbook(workbook, `relatorio_saidas_${getCurrentDateForFilename()}.xlsx`);
 }
 
+// Export Weekend Exits to Excel
+export async function exportWeekendExitsReportExcel(exits: import('@/types').WeekendExit[]): Promise<void> {
+  const data = exits.map(e => ({
+    'Data Saída': formatDate(e.dataSaida),
+    'Idoso': e.resident?.nome || 'N/A',
+    'Quarto': e.resident?.quarto || 'N/A',
+    'Hora Saída': e.horaSaida,
+    'Data Retorno Prevista': e.dataRetornoPrevista ? formatDate(e.dataRetornoPrevista) : 'N/A',
+    'Hora Retorno Prevista': e.horaRetornoPrevista || 'N/A',
+    'Hora Retorno Real': e.horaRetornoReal || 'Não retornou',
+    'Status': e.horaRetornoReal ? 'Retornou' : 'Fora',
+    'Acompanhante': e.acompanhante || '',
+    'Observações': e.observacoes || '',
+  }));
+  const workbook = await createExcelWithHeader(data, 'Relatório de Saídas de Fim de Semana');
+  await downloadExcelWorkbook(workbook, `relatorio_saidas_fim_semana_${getCurrentDateForFilename()}.xlsx`);
+}
+
 function getCurrentDateForFilename(): string {
   return new Date().toISOString().split('T')[0];
 }
