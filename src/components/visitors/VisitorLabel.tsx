@@ -118,7 +118,13 @@ export async function printVisitorLabelDirect(visit: Visit): Promise<void> {
                     ? `<p class="info"><span>Destino:</span> Ação Social</p>`
                     : visit.proposito === 'visita_geral' 
                       ? `<p class="info"><span>Destino:</span> Visita Geral</p>`
-                      : ''}
+                      : visit.proposito === 'visita_religiosa' 
+                        ? `<p class="info"><span>Destino:</span> Visita Religiosa</p>`
+                        : visit.proposito === 'psc' 
+                          ? `<p class="info"><span>Destino:</span> Prestação de Serviço Comunitário (PSC)</p>`
+                          : visit.proposito === 'voluntariado' 
+                            ? `<p class="info"><span>Destino:</span> Voluntariado</p>`
+                            : ''}
           </div>
 
           <div class="footer">

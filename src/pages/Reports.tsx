@@ -8,20 +8,23 @@ import {
   getResidents,
   getVehicleTrips,
   getResidentExits,
+  getWeekendExits,
 } from '@/lib/supabaseDb';
 import { 
   exportVisitsReportExcel,
   exportResidentsReportExcel,
   exportVehicleTripsReportExcel,
   exportResidentExitsReportExcel,
+  exportWeekendExitsReportExcel,
 } from '@/lib/exportUtils';
 import {
   generateVisitsReportPDF,
   generateVehicleTripsReportPDF,
   generateResidentExitsReportPDF,
   generateResidentsReportPDF,
+  generateWeekendExitsReportPDF,
 } from '@/lib/pdfUtils';
-import { FileText, FileSpreadsheet, Users, Home, Truck, DoorOpen, RefreshCw } from 'lucide-react';
+import { FileText, FileSpreadsheet, Users, Home, Truck, DoorOpen, Calendar, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { getLocalDataCounts, migrateLocalDataToBackend, type LocalDataCounts } from '@/lib/migrateLocalToBackend';
 
@@ -30,6 +33,7 @@ export default function Reports() {
   const [exportingResidents, setExportingResidents] = useState(false);
   const [exportingTrips, setExportingTrips] = useState(false);
   const [exportingExits, setExportingExits] = useState(false);
+  const [exportingWeekendExits, setExportingWeekendExits] = useState(false);
   const [localCounts, setLocalCounts] = useState<LocalDataCounts | null>(null);
   const [backendCounts, setBackendCounts] = useState<{ visits: number; exits: number } | null>(null);
   const [migrating, setMigrating] = useState(false);
@@ -198,7 +202,41 @@ export default function Reports() {
     } catch (error) {
       toast.error('Erro ao gerar Excel');
     } finally {
-      setExportingExits(false);
+    setExportingExits(false);
+    }
+  }
+
+  async function handleExportWeekendExitsPDF() {
+    setExportingWeekendExits(true);
+    try {
+      const [exits, settings] = await Promise.all([getWeekendExits(), getInstitutionSettings()]);
+      if (exits.length === 0) {
+        toast.warning('Nenhuma saída de fim de semana encontrada');
+        return;
+      }
+      generateWeekendExitsReportPDF(exits, settings);
+      toast.success('Relatório PDF gerado!');
+    } catch (error) {
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setExportingWeekendExits(false);
+    }
+  }
+
+  async function handleExportWeekendExitsExcel() {
+    setExportingWeekendExits(true);
+    try {
+      const exits = await getWeekendExits();
+      if (exits.length === 0) {
+        toast.warning('Nenhuma saída de fim de semana encontrada');
+        return;
+      }
+      await exportWeekendExitsReportExcel(exits);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar Excel');
+    } finally {
+      setExportingWeekendExits(false);
     }
   }
 
@@ -309,6 +347,26 @@ export default function Reports() {
                 PDF
               </Button>
               <Button onClick={handleExportExitsExcel} disabled={exportingExits} variant="outline" className="flex-1 gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Saídas de Fim de Semana
+              </CardTitle>
+              <CardDescription>Exporte o histórico de saídas de fim de semana</CardDescription>
+            </CardHeader>
+            <CardContent className="flex gap-3">
+              <Button onClick={handleExportWeekendExitsPDF} disabled={exportingWeekendExits} variant="outline" className="flex-1 gap-2">
+                <FileText className="h-4 w-4" />
+                PDF
+              </Button>
+              <Button onClick={handleExportWeekendExitsExcel} disabled={exportingWeekendExits} variant="outline" className="flex-1 gap-2">
                 <FileSpreadsheet className="h-4 w-4" />
                 Excel
               </Button>

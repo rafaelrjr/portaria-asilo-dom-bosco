@@ -12,10 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getResidents, getWeekendExits, saveWeekendExit, deleteWeekendExit } from '@/lib/supabaseDb';
+import { getResidents, getWeekendExits, saveWeekendExit, deleteWeekendExit, getInstitutionSettings } from '@/lib/supabaseDb';
+import { exportWeekendExitsReportExcel } from '@/lib/exportUtils';
+import { generateWeekendExitsReportPDF } from '@/lib/pdfUtils';
 import { Resident, WeekendExit } from '@/types';
 import { formatDate, getCurrentDate, getCurrentTime, generateId } from '@/lib/utils';
-import { Calendar, Plus, Clock, Edit, Trash2, RotateCcw, Search } from 'lucide-react';
+import { Calendar, Plus, Clock, Edit, Trash2, RotateCcw, Search, Filter, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -36,9 +38,14 @@ export default function WeekendExits() {
   const [residents, setResidents] = useState<Resident[]>([]);
   const [exits, setExits] = useState<WeekendExit[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedResident, setSelectedResident] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showNewForm, setShowNewForm] = useState(false);
   const [editingExit, setEditingExit] = useState<WeekendExit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<ExitFormData>({
     resolver: zodResolver(exitSchema),
@@ -147,10 +154,70 @@ export default function WeekendExits() {
     return { label: 'Fora', variant: 'secondary' };
   }
 
-  const filteredExits = exits.filter((e) => 
-    e.resident?.nome?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.acompanhante?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredExits = exits.filter((e) => {
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!e.resident?.nome?.toLowerCase().includes(q) && 
+          !e.acompanhante?.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    // Date range filter
+    if (startDate && e.dataSaida < startDate) return false;
+    if (endDate && e.dataSaida > endDate) return false;
+    // Resident filter
+    if (selectedResident && selectedResident !== 'all' && e.residentId !== selectedResident) return false;
+    // Status filter
+    if (statusFilter === 'out' && e.horaRetornoReal) return false;
+    if (statusFilter === 'returned' && !e.horaRetornoReal) return false;
+    if (statusFilter === 'late') {
+      const today = getCurrentDate();
+      if (e.horaRetornoReal || !e.dataRetornoPrevista || e.dataRetornoPrevista >= today) return false;
+    }
+    return true;
+  });
+
+  function clearFilters() {
+    setSearchQuery('');
+    setStartDate('');
+    setEndDate('');
+    setSelectedResident('');
+    setStatusFilter('all');
+  }
+
+  async function handleExportPDF() {
+    setExporting(true);
+    try {
+      const settings = await getInstitutionSettings();
+      if (filteredExits.length === 0) {
+        toast.warning('Nenhum registro para exportar');
+        return;
+      }
+      generateWeekendExitsReportPDF(filteredExits, settings);
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar PDF');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleExportExcel() {
+    setExporting(true);
+    try {
+      if (filteredExits.length === 0) {
+        toast.warning('Nenhum registro para exportar');
+        return;
+      }
+      await exportWeekendExitsReportExcel(filteredExits);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar Excel');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Visualizador can also create in this section
   const canCreate = role === 'admin' || role === 'operador' || role === 'visualizador';
@@ -171,24 +238,89 @@ export default function WeekendExits() {
           )}
         </div>
 
+        {/* Filters Card */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Registro de Saídas
-                <Badge variant="secondary">{filteredExits.length}</Badge>
-              </CardTitle>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou acompanhante..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-primary" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-5">
+              <div className="space-y-2">
+                <Label>Buscar</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Nome ou acompanhante..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Data Inicial</Label>
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Final</Label>
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Idoso</Label>
+                <Select value={selectedResident} onValueChange={setSelectedResident}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {residents.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="out">Fora</SelectItem>
+                    <SelectItem value="returned">Retornaram</SelectItem>
+                    <SelectItem value="late">Atrasados</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+            <div className="mt-4 flex flex-wrap justify-between gap-2">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleExportPDF} disabled={exporting} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Exportar PDF
+                </Button>
+                <Button variant="outline" onClick={handleExportExcel} disabled={exporting} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Exportar Excel
+                </Button>
+              </div>
+              <Button variant="outline" onClick={clearFilters}>Limpar Filtros</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Records Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Registro de Saídas
+              <Badge variant="secondary">{filteredExits.length}</Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
