@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SupabaseAuthProvider, useSupabaseAuth } from "@/contexts/SupabaseAuthContext";
+import { GlobalAlertBanner } from "@/components/alerts/GlobalAlertBanner";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Entry from "./pages/Entry";
@@ -75,6 +76,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SupabaseAuthProvider>
+          <GlobalAlertBanner />
           <AppRoutes />
         </SupabaseAuthProvider>
       </BrowserRouter>

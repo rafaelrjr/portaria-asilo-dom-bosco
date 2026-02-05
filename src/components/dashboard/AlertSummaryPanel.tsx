@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getActiveVisits, getActiveResidentExits, getInstitutionSettings } from '@/lib/supabaseDb';
+import { getActiveVisits, getActiveResidentExits, getActiveWeekendExits, getInstitutionSettings } from '@/lib/supabaseDb';
 import { getCurrentTime } from '@/lib/utils';
-import { AlertTriangle, Clock, UserX, Home } from 'lucide-react';
-import { Visit, ResidentExit, InstitutionSettings } from '@/types';
+import { AlertTriangle, Clock, UserX, Home, Calendar } from 'lucide-react';
+import { Visit, ResidentExit, WeekendExit, InstitutionSettings } from '@/types';
 
 interface Alert {
   id: string;
-  type: 'visitor_outside_hours' | 'resident_late_return' | 'visitor_overstay';
+  type: 'visitor_outside_hours' | 'resident_late_return' | 'visitor_overstay' | 'weekend_late_return';
   severity: 'warning' | 'critical';
   title: string;
   description: string;
@@ -27,9 +27,10 @@ export function AlertSummaryPanel() {
 
   async function loadAlerts() {
     try {
-      const [activeVisits, activeExits, settings] = await Promise.all([
+      const [activeVisits, activeExits, activeWeekendExits, settings] = await Promise.all([
         getActiveVisits(),
         getActiveResidentExits(),
+        getActiveWeekendExits(),
         getInstitutionSettings().catch(() => null),
       ]);
 
@@ -65,31 +66,33 @@ export function AlertSummaryPanel() {
 
         // Visitantes ainda no local após horário de visita
         if (currentTime > visitaFim && !visit.horaSaida) {
-          newAlerts.push({
-            id: `visitor-overstay-${visit.id}`,
-            type: 'visitor_overstay',
-            severity: 'warning',
-            title: `${visit.pessoa?.nome || 'Visitante'} - Ainda no Local`,
-            description: `Horário de visita encerrado às ${visitaFim}`,
-            time: visit.horaEntrada,
-          });
+          const hasSpecialEnd = visit.pessoa?.horarioEspecial && visit.pessoa?.horarioEspecialFim;
+          const effectiveEnd = hasSpecialEnd ? visit.pessoa.horarioEspecialFim! : visitaFim;
+          
+          if (currentTime > effectiveEnd) {
+            newAlerts.push({
+              id: `visitor-overstay-${visit.id}`,
+              type: 'visitor_overstay',
+              severity: 'warning',
+              title: `${visit.pessoa?.nome || 'Visitante'} - Ainda no Local`,
+              description: `Horário limite: ${effectiveEnd}`,
+              time: visit.horaEntrada,
+            });
+          }
         }
       });
 
-      // Verificar idosos que não retornaram no horário previsto
-      // Considera tanto a data quanto o horário (se passou o dia, está atrasado)
+      // Verificar idosos que não retornaram no horário previsto (saídas temporárias)
       const today = new Date().toISOString().split('T')[0];
       
       activeExits.forEach((exit: ResidentExit) => {
         if (!exit.horaRetornoReal) {
-          // Está atrasado se: passou o dia OU (mesmo dia E passou o horário)
           const isLateByDate = exit.dataSaida < today;
           const isLateByTime = exit.dataSaida === today && currentTime > exit.horaRetornoPrevista;
           
           if (isLateByDate || isLateByTime) {
             let minutesLate: number;
             if (isLateByDate) {
-              // Passou o dia - calcular diferença total
               const exitDate = new Date(exit.dataSaida + 'T' + exit.horaRetornoPrevista);
               const now = new Date();
               minutesLate = Math.floor((now.getTime() - exitDate.getTime()) / (1000 * 60));
@@ -104,6 +107,36 @@ export function AlertSummaryPanel() {
               title: `${exit.resident?.nome || 'Idoso'} - Retorno Atrasado`,
               description: isLateByDate 
                 ? `Saída: ${exit.dataSaida} | Previsto: ${exit.horaRetornoPrevista} | Não retornou!`
+                : `Previsto: ${exit.horaRetornoPrevista} | Atraso: ${minutesLate} min`,
+              time: exit.horaSaida,
+            });
+          }
+        }
+      });
+
+      // Verificar idosos que não retornaram de saídas de fim de semana
+      activeWeekendExits.forEach((exit: WeekendExit) => {
+        if (!exit.horaRetornoReal && exit.dataRetornoPrevista && exit.horaRetornoPrevista) {
+          const isLateByDate = exit.dataRetornoPrevista < today;
+          const isLateByTime = exit.dataRetornoPrevista === today && currentTime > exit.horaRetornoPrevista;
+          
+          if (isLateByDate || isLateByTime) {
+            let minutesLate: number;
+            if (isLateByDate) {
+              const exitDate = new Date(exit.dataRetornoPrevista + 'T' + exit.horaRetornoPrevista);
+              const now = new Date();
+              minutesLate = Math.floor((now.getTime() - exitDate.getTime()) / (1000 * 60));
+            } else {
+              minutesLate = calculateMinutesLate(exit.horaRetornoPrevista, currentTime);
+            }
+            
+            newAlerts.push({
+              id: `weekend-late-${exit.id}`,
+              type: 'weekend_late_return',
+              severity: minutesLate > 120 ? 'critical' : 'warning',
+              title: `${exit.resident?.nome || 'Idoso'} - Retorno Fim de Semana Atrasado`,
+              description: isLateByDate 
+                ? `Retorno previsto: ${exit.dataRetornoPrevista} às ${exit.horaRetornoPrevista}`
                 : `Previsto: ${exit.horaRetornoPrevista} | Atraso: ${minutesLate} min`,
               time: exit.horaSaida,
             });
@@ -140,6 +173,8 @@ export function AlertSummaryPanel() {
         return <Home className="h-4 w-4" />;
       case 'visitor_overstay':
         return <UserX className="h-4 w-4" />;
+      case 'weekend_late_return':
+        return <Calendar className="h-4 w-4" />;
       default:
         return <AlertTriangle className="h-4 w-4" />;
     }
