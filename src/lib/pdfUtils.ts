@@ -94,20 +94,27 @@ export function generateVisitsReportPDF(visits: Visit[], settings?: InstitutionS
     voluntariado: 'Voluntariado',
   };
 
+  function getVisitDetail(v: Visit): string {
+    if (v.proposito === 'idoso_especifico') return v.idoso?.nome || '-';
+    if (v.proposito === 'reuniao') return v.pessoaDepartamento || '-';
+    if (v.proposito === 'acao_social') return v.descricaoAcaoSocial || 'Ação Social';
+    return purposeLabels[v.proposito] || v.proposito;
+  }
+
   const tableData = visits.map((v) => [
     v.dataEntrada,
     v.horaEntrada,
     v.horaSaida || 'Em andamento',
     v.pessoa?.nome || '-',
     v.pessoa?.cpf || '-',
-    v.idoso?.nome || '-',
     purposeLabels[v.proposito] || v.proposito,
+    getVisitDetail(v),
     v.observacoes || '-',
   ]);
 
   autoTable(doc, {
     startY,
-    head: [['Data', 'Entrada', 'Saída', 'Visitante', 'CPF', 'Idoso', 'Propósito', 'Observações']],
+    head: [['Data', 'Entrada', 'Saída', 'Visitante', 'CPF', 'Propósito', 'Destino/Detalhe', 'Observações']],
     body: tableData,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [59, 130, 246] },

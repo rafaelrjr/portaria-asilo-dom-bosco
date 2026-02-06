@@ -43,8 +43,8 @@ export default function AuditLogs() {
   // Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [tableName, setTableName] = useState<string>('');
-  const [action, setAction] = useState<string>('');
+  const [tableName, setTableName] = useState<string>('all');
+  const [action, setAction] = useState<string>('all');
   
   // Pagination
   const [page, setPage] = useState(1);
@@ -56,8 +56,8 @@ export default function AuditLogs() {
       const result = await getAuditLogs({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        tableName: tableName || undefined,
-        action: action || undefined,
+        tableName: tableName && tableName !== 'all' ? tableName : undefined,
+        action: action && action !== 'all' ? action : undefined,
         limit: pageSize,
         offset: (page - 1) * pageSize,
       });
@@ -84,8 +84,8 @@ export default function AuditLogs() {
   function handleClearFilters() {
     setStartDate('');
     setEndDate('');
-    setTableName('');
-    setAction('');
+    setTableName('all');
+    setAction('all');
     setPage(1);
     setTimeout(loadLogs, 0);
   }
@@ -146,7 +146,7 @@ export default function AuditLogs() {
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     {Object.entries(TABLE_LABELS).map(([key, label]) => (
                       <SelectItem key={key} value={key}>{label}</SelectItem>
                     ))}
@@ -160,7 +160,7 @@ export default function AuditLogs() {
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     <SelectItem value="INSERT">Criação</SelectItem>
                     <SelectItem value="UPDATE">Edição</SelectItem>
                     <SelectItem value="DELETE">Exclusão</SelectItem>

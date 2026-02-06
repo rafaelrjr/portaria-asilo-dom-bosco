@@ -157,43 +157,53 @@ export function EntryForm() {
   async function processSubmit(data: EntryFormData) {
     if (!selectedPerson) return;
 
-    // Verificar se a pessoa já possui visita ativa
-    const activeVisits = await getActiveVisits();
-    const hasActiveVisit = activeVisits.some(v => v.pessoaId === selectedPerson.id);
+    try {
+      // Verificar se a pessoa já possui visita ativa
+      const activeVisits = await getActiveVisits();
+      const hasActiveVisit = activeVisits.some(v => v.pessoaId === selectedPerson.id);
 
-    if (hasActiveVisit) {
-      toast.error('Esta pessoa já possui uma visita em andamento. Registre a saída antes de criar nova entrada.');
-      return;
+      if (hasActiveVisit) {
+        toast.error('Esta pessoa já possui uma visita em andamento. Registre a saída antes de criar nova entrada.');
+        return;
+      }
+
+      // Only set idosoId when purpose requires it
+      const needsIdoso = data.proposito === 'idoso_especifico';
+      const needsDepartamento = data.proposito === 'reuniao';
+      const needsAcaoSocial = data.proposito === 'acao_social';
+
+      const visit: Visit = {
+        id: generateId(),
+        pessoaId: selectedPerson.id,
+        pessoa: selectedPerson,
+        proposito: data.proposito as VisitPurpose,
+        idosoId: needsIdoso ? data.idosoId : undefined,
+        idoso: needsIdoso && data.idosoId ? residents.find(r => r.id === data.idosoId) : undefined,
+        descricaoAcaoSocial: needsAcaoSocial ? data.descricaoAcaoSocial : undefined,
+        pessoaDepartamento: needsDepartamento ? data.pessoaDepartamento : undefined,
+        dataEntrada: getCurrentDate(),
+        horaEntrada: getCurrentTime(),
+        etiquetaEmitida: true,
+        etiquetaDevolvida: false,
+        observacoes: data.observacoes,
+        createdAt: new Date().toISOString(),
+      };
+      
+      await saveVisit(visit);
+      toast.success('Entrada registrada com sucesso!');
+      
+      // Print label directly
+      setIsPrinting(true);
+      await printVisitorLabelDirect(visit);
+      setIsPrinting(false);
+      
+      // Reset form
+      setSelectedPerson(null);
+      reset();
+    } catch (error) {
+      console.error('Erro ao registrar entrada:', error);
+      toast.error('Erro ao registrar entrada. Tente novamente.');
     }
-
-    const visit: Visit = {
-      id: generateId(),
-      pessoaId: selectedPerson.id,
-      pessoa: selectedPerson,
-      proposito: data.proposito as VisitPurpose,
-      idosoId: data.idosoId,
-      idoso: data.idosoId ? residents.find(r => r.id === data.idosoId) : undefined,
-      descricaoAcaoSocial: data.descricaoAcaoSocial,
-      pessoaDepartamento: data.pessoaDepartamento,
-      dataEntrada: getCurrentDate(),
-      horaEntrada: getCurrentTime(),
-      etiquetaEmitida: true,
-      etiquetaDevolvida: false,
-      observacoes: data.observacoes,
-      createdAt: new Date().toISOString(),
-    };
-    
-    await saveVisit(visit);
-    toast.success('Entrada registrada com sucesso!');
-    
-    // Print label directly
-    setIsPrinting(true);
-    await printVisitorLabelDirect(visit);
-    setIsPrinting(false);
-    
-    // Reset form
-    setSelectedPerson(null);
-    reset();
   }
 
 
