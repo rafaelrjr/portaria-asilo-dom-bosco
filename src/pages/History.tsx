@@ -129,7 +129,7 @@ export default function History() {
             {filteredVisits.length === 0 ? <p className="text-center text-muted-foreground py-8">Nenhuma visita encontrada</p> : (
               <div className="rounded-lg border overflow-x-auto">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Visitante</TableHead><TableHead>Data</TableHead><TableHead>Entrada</TableHead><TableHead>Saída</TableHead><TableHead>Propósito</TableHead><TableHead>Idoso</TableHead><TableHead>Observações</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Visitante</TableHead><TableHead>Data</TableHead><TableHead>Entrada</TableHead><TableHead>Saída</TableHead><TableHead>Propósito</TableHead><TableHead>Destino/Detalhe</TableHead><TableHead>Observações</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredVisits.map((visit) => (
                       <TableRow key={visit.id}>
@@ -138,7 +138,27 @@ export default function History() {
                         <TableCell>{visit.horaEntrada}</TableCell>
                         <TableCell>{visit.horaSaida || '-'}</TableCell>
                         <TableCell><Badge variant="outline">{getVisitPurposeLabel(visit.proposito)}</Badge></TableCell>
-                        <TableCell>{visit.idoso ? <span>{visit.idoso.nome} {visit.idoso.quarto && <span className="text-muted-foreground">(Q.{visit.idoso.quarto})</span>}</span> : '-'}</TableCell>
+                        <TableCell>{
+                          visit.proposito === 'idoso_especifico' && visit.idoso
+                            ? <span>{visit.idoso.nome} {visit.idoso.quarto && <span className="text-muted-foreground">(Q.{visit.idoso.quarto})</span>}</span>
+                            : visit.proposito === 'reuniao' && visit.pessoaDepartamento
+                              ? visit.pessoaDepartamento
+                              : visit.proposito === 'acao_social' && visit.descricaoAcaoSocial
+                                ? visit.descricaoAcaoSocial
+                                : visit.proposito === 'acao_social'
+                                  ? 'Ação Social'
+                                  : visit.proposito === 'visita_religiosa'
+                                    ? 'Visita Religiosa'
+                                    : visit.proposito === 'psc'
+                                      ? 'PSC'
+                                      : visit.proposito === 'voluntariado'
+                                        ? 'Voluntariado'
+                                        : visit.proposito === 'prestacao_servico'
+                                          ? 'Prestação de Serviço'
+                                          : visit.proposito === 'visita_geral'
+                                            ? 'Visita Geral'
+                                            : '-'
+                        }</TableCell>
                         <TableCell className="max-w-xs truncate" title={visit.observacoes || ''}>{visit.observacoes || '-'}</TableCell>
                         <TableCell>{visit.horaSaida ? <Badge variant="secondary">Finalizada</Badge> : <Badge variant="default" className="animate-pulse-soft">No local</Badge>}</TableCell>
                         <TableCell className="text-right">

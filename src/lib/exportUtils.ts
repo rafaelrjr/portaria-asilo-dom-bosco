@@ -94,6 +94,13 @@ async function downloadExcelWorkbook(workbook: ExcelJS.Workbook, filename: strin
 
 // Export Visits Report to Excel
 export async function exportVisitsReportExcel(visits: Visit[]): Promise<void> {
+  function getVisitDetail(v: Visit): string {
+    if (v.proposito === 'idoso_especifico') return v.idoso?.nome || 'N/A';
+    if (v.proposito === 'reuniao') return v.pessoaDepartamento || 'N/A';
+    if (v.proposito === 'acao_social') return v.descricaoAcaoSocial || 'Ação Social';
+    return getVisitPurposeLabel(v.proposito);
+  }
+
   const data = visits.map(v => ({
     'Data': formatDate(v.dataEntrada),
     'Hora Entrada': v.horaEntrada,
@@ -102,7 +109,7 @@ export async function exportVisitsReportExcel(visits: Visit[]): Promise<void> {
     'CPF': v.pessoa?.cpf || 'N/A',
     'Tipo': v.pessoa ? getVisitorTypeLabel(v.pessoa.tipo) : 'N/A',
     'Propósito': getVisitPurposeLabel(v.proposito),
-    'Idoso Visitado': v.idoso?.nome || 'N/A',
+    'Destino/Detalhe': getVisitDetail(v),
     'Observações': v.observacoes || '',
   }));
   const workbook = await createExcelWithHeader(data, 'Relatório de Visitas');
@@ -179,6 +186,13 @@ function getCurrentDateForFilename(): string {
 
 // Export Visits Report (CSV)
 export function exportVisitsReport(visits: Visit[], filename = 'relatorio_visitas'): void {
+  function getVisitDetailCSV(v: Visit): string {
+    if (v.proposito === 'idoso_especifico') return v.idoso?.nome || 'N/A';
+    if (v.proposito === 'reuniao') return v.pessoaDepartamento || 'N/A';
+    if (v.proposito === 'acao_social') return v.descricaoAcaoSocial || 'Ação Social';
+    return getVisitPurposeLabel(v.proposito);
+  }
+
   const data = visits.map(v => ({
     'Data': formatDate(v.dataEntrada),
     'Hora Entrada': v.horaEntrada,
@@ -187,8 +201,7 @@ export function exportVisitsReport(visits: Visit[], filename = 'relatorio_visita
     'CPF': v.pessoa?.cpf || 'N/A',
     'Tipo': v.pessoa ? getVisitorTypeLabel(v.pessoa.tipo) : 'N/A',
     'Propósito': getVisitPurposeLabel(v.proposito),
-    'Idoso Visitado': v.idoso?.nome || 'N/A',
-    'Quarto': v.idoso?.quarto || 'N/A',
+    'Destino/Detalhe': getVisitDetailCSV(v),
     'Observações': v.observacoes || '',
   }));
   exportToCSV(data, filename);
