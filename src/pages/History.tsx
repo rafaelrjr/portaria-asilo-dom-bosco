@@ -9,13 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getVisits, getResidents, saveVisit } from '@/lib/supabaseDb';
 import { formatDate, getCurrentTime, getVisitPurposeLabel } from '@/lib/utils';
-import { Visit, Resident } from '@/types';
+import { Visit, Resident, VisitPurpose } from '@/types';
 import { History as HistoryIcon, Search, LogOut, Printer, Filter, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { printVisitorLabelDirect } from '@/components/visitors/VisitorLabel';
 import { getLocalDataCounts, migrateLocalDataToBackend, type LocalDataCounts } from '@/lib/migrateLocalToBackend';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+
+const VISUALIZADOR_PURPOSES: VisitPurpose[] = ['idoso_especifico', 'psc', 'acao_social', 'voluntariado'];
 
 export default function History() {
+  const { role } = useSupabaseAuth();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [residents, setResidents] = useState<Resident[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +29,8 @@ export default function History() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [localCounts, setLocalCounts] = useState<LocalDataCounts | null>(null);
   const [migrating, setMigrating] = useState(false);
+
+  const isVisualizador = role === 'visualizador';
 
   useEffect(() => {
     loadData();
@@ -76,6 +82,8 @@ export default function History() {
   function clearFilters() { setSearchQuery(''); setStartDate(''); setEndDate(''); setSelectedResident(''); setStatusFilter('all'); }
 
   const filteredVisits = visits.filter((visit) => {
+    // Role-based filtering: visualizador sees only specific purposes
+    if (isVisualizador && !VISUALIZADOR_PURPOSES.includes(visit.proposito)) return false;
     if (searchQuery) { const q = searchQuery.toLowerCase(); if (!visit.pessoa?.nome.toLowerCase().includes(q) && !visit.pessoa?.cpf.includes(q)) return false; }
     if (startDate && visit.dataEntrada < startDate) return false;
     if (endDate && visit.dataEntrada > endDate) return false;
@@ -164,7 +172,7 @@ export default function History() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" onClick={() => handlePrintLabel(visit)}><Printer className="h-4 w-4" /></Button>
-                            {!visit.horaSaida && <Button variant="ghost" size="icon" onClick={() => handleCheckout(visit)}><LogOut className="h-4 w-4 text-success" /></Button>}
+                            {!visit.horaSaida && !isVisualizador && <Button variant="ghost" size="icon" onClick={() => handleCheckout(visit)}><LogOut className="h-4 w-4 text-success" /></Button>}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -179,4 +187,3 @@ export default function History() {
     </Layout>
   );
 }
-

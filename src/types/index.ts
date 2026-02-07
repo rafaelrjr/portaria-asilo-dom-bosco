@@ -1,4 +1,4 @@
-export type VisitorType = 'familiar' | 'prestador' | 'acao_social' | 'visita_geral' | 'voluntario' | 'diretoria' | 'visita_religiosa' | 'psc' | 'voluntariado' | 'outro';
+export type VisitorType = 'familiar' | 'prestador' | 'visita_geral' | 'voluntario' | 'diretoria' | 'psc' | 'acao_social' | 'visita_religiosa' | 'voluntariado' | 'outro';
 
 export type VisitPurpose = 'idoso_especifico' | 'acao_social' | 'visita_geral' | 'reuniao' | 'prestacao_servico' | 'visita_religiosa' | 'psc' | 'voluntariado';
 

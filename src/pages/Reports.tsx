@@ -27,8 +27,14 @@ import {
 import { FileText, FileSpreadsheet, Users, Home, Truck, DoorOpen, Calendar, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { getLocalDataCounts, migrateLocalDataToBackend, type LocalDataCounts } from '@/lib/migrateLocalToBackend';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { VisitPurpose } from '@/types';
+import { Navigate } from 'react-router-dom';
+
+const VISUALIZADOR_PURPOSES: VisitPurpose[] = ['idoso_especifico', 'psc', 'acao_social', 'voluntariado'];
 
 export default function Reports() {
+  const { role } = useSupabaseAuth();
   const [exportingVisits, setExportingVisits] = useState(false);
   const [exportingResidents, setExportingResidents] = useState(false);
   const [exportingTrips, setExportingTrips] = useState(false);
@@ -38,7 +44,11 @@ export default function Reports() {
   const [backendCounts, setBackendCounts] = useState<{ visits: number; exits: number } | null>(null);
   const [migrating, setMigrating] = useState(false);
 
+  const isVisualizador = role === 'visualizador';
+  const isOperador = role === 'operador';
+
   useEffect(() => {
+    if (isOperador) return;
     (async () => {
       try {
         const [local, visits, exits] = await Promise.all([
@@ -52,7 +62,12 @@ export default function Reports() {
         console.error(error);
       }
     })();
-  }, []);
+  }, [isOperador]);
+
+  // Operador should not access reports
+  if (isOperador) {
+    return <Navigate to="/" replace />;
+  }
 
   async function handleMigrateLocalData() {
     setMigrating(true);
@@ -70,10 +85,18 @@ export default function Reports() {
     }
   }
 
+  async function getFilteredVisits() {
+    const visits = await getVisits();
+    if (isVisualizador) {
+      return visits.filter(v => VISUALIZADOR_PURPOSES.includes(v.proposito));
+    }
+    return visits;
+  }
+
   async function handleExportVisitsPDF() {
     setExportingVisits(true);
     try {
-      const [visits, settings] = await Promise.all([getVisits(), getInstitutionSettings()]);
+      const [visits, settings] = await Promise.all([getFilteredVisits(), getInstitutionSettings()]);
       if (visits.length === 0) {
         toast.warning('Nenhuma visita encontrada');
         return;
@@ -90,7 +113,7 @@ export default function Reports() {
   async function handleExportVisitsExcel() {
     setExportingVisits(true);
     try {
-      const visits = await getVisits();
+      const visits = await getFilteredVisits();
       if (visits.length === 0) {
         toast.warning('Nenhuma visita encontrada');
         return;
@@ -279,7 +302,11 @@ export default function Reports() {
                 <Users className="h-5 w-5 text-primary" />
                 Relatório de Visitas
               </CardTitle>
-              <CardDescription>Exporte o histórico de visitas</CardDescription>
+              <CardDescription>
+                {isVisualizador 
+                  ? 'Visitas a idosos, PSC, ação social e voluntariado'
+                  : 'Exporte o histórico de visitas'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex gap-3">
               <Button onClick={handleExportVisitsPDF} disabled={exportingVisits} variant="outline" className="flex-1 gap-2">
@@ -313,25 +340,28 @@ export default function Reports() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-primary" />
-                Relatório de Veículos
-              </CardTitle>
-              <CardDescription>Exporte o histórico de viagens</CardDescription>
-            </CardHeader>
-            <CardContent className="flex gap-3">
-              <Button onClick={handleExportTripsPDF} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
-                <FileText className="h-4 w-4" />
-                PDF
-              </Button>
-              <Button onClick={handleExportTripsExcel} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
-                <FileSpreadsheet className="h-4 w-4" />
-                Excel
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Vehicle report - hidden for visualizador */}
+          {!isVisualizador && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  Relatório de Veículos
+                </CardTitle>
+                <CardDescription>Exporte o histórico de viagens</CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-3">
+                <Button onClick={handleExportTripsPDF} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
+                  <FileText className="h-4 w-4" />
+                  PDF
+                </Button>
+                <Button onClick={handleExportTripsExcel} disabled={exportingTrips} variant="outline" className="flex-1 gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Excel
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

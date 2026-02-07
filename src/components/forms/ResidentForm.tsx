@@ -103,31 +103,36 @@ export function ResidentForm({ resident, onSuccess, onCancel }: ResidentFormProp
   }
 
   async function onSubmit(data: ResidentFormData) {
-    const newResident: Resident = {
-      id: resident?.id || generateId(),
-      nome: data.nome,
-      cpf: data.cpf,
-      dataNascimento: data.dataNascimento,
-      quarto: data.quarto,
-      foto,
-      observacoes: data.observacoes,
-      ativo: data.ativo,
-      autorizadoSaidaTemporaria: data.autorizadoSaidaTemporaria,
-      diasSaidaPermitidos: data.autorizadoSaidaTemporaria ? diasSaida : undefined,
-      horarioSaidaPermitido: data.autorizadoSaidaTemporaria ? data.horarioSaidaPermitido : undefined,
-      horarioRetornoPermitido: data.autorizadoSaidaTemporaria ? data.horarioRetornoPermitido : undefined,
-      createdAt: resident?.createdAt || new Date().toISOString(),
-    };
+    try {
+      const newResident: Resident = {
+        id: resident?.id || generateId(),
+        nome: data.nome,
+        cpf: data.cpf,
+        dataNascimento: data.dataNascimento,
+        quarto: data.quarto || '',
+        foto,
+        observacoes: data.observacoes,
+        ativo: data.ativo,
+        autorizadoSaidaTemporaria: data.autorizadoSaidaTemporaria,
+        diasSaidaPermitidos: data.autorizadoSaidaTemporaria ? diasSaida : undefined,
+        horarioSaidaPermitido: data.autorizadoSaidaTemporaria ? data.horarioSaidaPermitido : undefined,
+        horarioRetornoPermitido: data.autorizadoSaidaTemporaria ? data.horarioRetornoPermitido : undefined,
+        createdAt: resident?.createdAt || new Date().toISOString(),
+      };
 
-    await saveResident(newResident);
-    toast.success(isEditing ? 'Idoso atualizado!' : 'Idoso cadastrado com sucesso!');
-    
-    if (onSuccess) {
-      onSuccess(newResident);
-    } else {
-      reset({ ativo: true, autorizadoSaidaTemporaria: false });
-      setFoto(undefined);
-      setDiasSaida([]);
+      await saveResident(newResident);
+      toast.success(isEditing ? 'Idoso atualizado!' : 'Idoso cadastrado com sucesso!');
+      
+      if (onSuccess) {
+        onSuccess(newResident);
+      } else {
+        reset({ ativo: true, autorizadoSaidaTemporaria: false });
+        setFoto(undefined);
+        setDiasSaida([]);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar idoso:', error);
+      toast.error('Erro ao salvar. Tente novamente.');
     }
   }
 
