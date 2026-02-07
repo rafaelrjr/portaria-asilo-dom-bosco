@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getActiveVisits, getVisitsByDate, getVisitsByPeriod, getVisitsByResident, getResidents, initializeSampleData, getActiveResidentExits } from '@/lib/db';
+import { getActiveVisits, getVisitsByDate, getVisitsByPeriod, getVisitsByResident, getResidents, getActiveResidentExits } from '@/lib/supabaseDb';
 import { getCurrentDate, formatDate } from '@/lib/utils';
 import { Users, UserCheck, Calendar, TrendingUp, Search, Home, Clock } from 'lucide-react';
 import { Resident, ResidentExit } from '@/types';
@@ -34,38 +34,39 @@ export default function Dashboard() {
   const [showIdososForaDialog, setShowIdososForaDialog] = useState(false);
 
   useEffect(() => {
-    async function init() {
-      await initializeSampleData();
-      await loadStats();
-      const res = await getResidents();
-      setResidents(res.filter(r => r.ativo));
-    }
-    init();
+    loadStats();
+    getResidents().then(res => setResidents(res.filter(r => r.ativo)));
   }, []);
 
   async function loadStats() {
-    const today = getCurrentDate();
-    const todayVisits = await getVisitsByDate(today);
-    setVisitantesHoje(todayVisits.length);
-    const activeVisits = await getActiveVisits();
-    setVisitantesNoLocal(activeVisits.length);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekVisits = await getVisitsByPeriod(weekAgo.toISOString().split('T')[0], today);
-    setVisitasSemana(weekVisits.length);
-    const monthAgo = new Date();
-    monthAgo.setDate(monthAgo.getDate() - 30);
-    const monthVisits = await getVisitsByPeriod(monthAgo.toISOString().split('T')[0], today);
-    setVisitasMes(monthVisits.length);
-    
-    // Carregar idosos em saída temporária
-    const exits = await getActiveResidentExits();
-    setIdososFora(exits.length);
-    setActiveExits(exits);
+    try {
+      const today = getCurrentDate();
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const monthAgo = new Date();
+      monthAgo.setDate(monthAgo.getDate() - 30);
+
+      const [todayVisits, activeVisits, weekVisits, monthVisits, exits] = await Promise.all([
+        getVisitsByDate(today),
+        getActiveVisits(),
+        getVisitsByPeriod(weekAgo.toISOString().split('T')[0], today),
+        getVisitsByPeriod(monthAgo.toISOString().split('T')[0], today),
+        getActiveResidentExits(),
+      ]);
+
+      setVisitantesHoje(todayVisits.length);
+      setVisitantesNoLocal(activeVisits.length);
+      setVisitasSemana(weekVisits.length);
+      setVisitasMes(monthVisits.length);
+      setIdososFora(exits.length);
+      setActiveExits(exits);
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+    }
   }
 
   async function handleSearch() {
-    if (selectedResident && startDate && endDate) {
+    if (selectedResident && selectedResident !== 'all' && startDate && endDate) {
       const visits = await getVisitsByResident(selectedResident, startDate, endDate);
       setFilteredVisitsCount(visits.length);
     } else if (startDate && endDate) {

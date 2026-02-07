@@ -111,12 +111,12 @@ export default function Residents() {
                         <TableCell><Badge variant={resident.ativo ? 'default' : 'secondary'}>{resident.ativo ? 'Ativo' : 'Inativo'}</Badge></TableCell>
                         <TableCell className="max-w-xs truncate">{resident.observacoes || '-'}</TableCell>
                         <TableCell className="text-right">
-                          {canEdit && (
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => setEditingResident(resident)}><Edit className="h-4 w-4" /></Button>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => setEditingResident(resident)}><Edit className="h-4 w-4" /></Button>
+                            {canEdit && (
                               <Button variant="ghost" size="icon" onClick={() => handleDelete(resident)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -532,6 +532,42 @@ export async function deleteVisit(id: string): Promise<void> {
   });
 }
 
+// Helper visit query functions for Dashboard
+export async function getVisitsByDate(date: string): Promise<Visit[]> {
+  const { data, error } = await supabase
+    .from('visits')
+    .select('id')
+    .eq('data_entrada', date);
+
+  if (error) throw error;
+  return (data || []).map(row => ({ id: row.id } as Visit));
+}
+
+export async function getVisitsByPeriod(startDate: string, endDate: string): Promise<Visit[]> {
+  const { data, error } = await supabase
+    .from('visits')
+    .select('id')
+    .gte('data_entrada', startDate)
+    .lte('data_entrada', endDate);
+
+  if (error) throw error;
+  return (data || []).map(row => ({ id: row.id } as Visit));
+}
+
+export async function getVisitsByResident(residentId: string, startDate?: string, endDate?: string): Promise<Visit[]> {
+  let query = supabase
+    .from('visits')
+    .select('id')
+    .eq('idoso_id', residentId);
+
+  if (startDate) query = query.gte('data_entrada', startDate);
+  if (endDate) query = query.lte('data_entrada', endDate);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(row => ({ id: row.id } as Visit));
+}
+
 // ==================== VEHICLES ====================
 export async function getVehicles(): Promise<Vehicle[]> {
   const { data, error } = await supabase

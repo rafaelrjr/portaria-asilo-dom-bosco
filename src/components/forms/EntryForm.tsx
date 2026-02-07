@@ -126,8 +126,9 @@ export function EntryForm() {
       return;
     }
 
-    // Check if outside visiting hours, considering infirmary rules
-    if (isOutsideVisitingHours(data.idosoId)) {
+    // Skip justification for purposes that don't require it
+    const exemptPurposes = ['prestacao_servico', 'psc', 'voluntariado', 'reuniao'];
+    if (!exemptPurposes.includes(data.proposito) && isOutsideVisitingHours(data.idosoId)) {
       setPendingSubmitData(data);
       setShowJustificationDialog(true);
       return;

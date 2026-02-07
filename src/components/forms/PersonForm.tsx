@@ -149,14 +149,10 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
                 <SelectContent>
                   <SelectItem value="familiar">Familiar</SelectItem>
                   <SelectItem value="prestador">Prestador de Serviço</SelectItem>
-                  <SelectItem value="acao_social">Ação Social</SelectItem>
                   <SelectItem value="visita_geral">Visita Geral</SelectItem>
                   <SelectItem value="voluntario">Voluntário</SelectItem>
-                  <SelectItem value="diretoria">Diretoria</SelectItem>
-                  <SelectItem value="visita_religiosa">Visita Religiosa</SelectItem>
                   <SelectItem value="psc">PSC</SelectItem>
-                  <SelectItem value="voluntariado">Voluntariado</SelectItem>
-                  <SelectItem value="outro">Outro</SelectItem>
+                  <SelectItem value="diretoria">Diretoria</SelectItem>
                 </SelectContent>
               </Select>
             </div>

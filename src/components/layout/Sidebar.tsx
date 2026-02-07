@@ -17,7 +17,7 @@ const allNavItems = [
   { to: '/saidas-fim-semana', icon: Calendar, label: 'Saídas Fim de Semana', roles: ['admin', 'operador', 'visualizador'] },
   { to: '/frota', icon: Truck, label: 'Frota', roles: ['admin', 'operador'] },
   { to: '/historico', icon: History, label: 'Histórico', roles: ['admin', 'operador', 'visualizador'] },
-  { to: '/relatorios', icon: FileText, label: 'Relatórios', roles: ['admin', 'operador', 'visualizador'] },
+  { to: '/relatorios', icon: FileText, label: 'Relatórios', roles: ['admin', 'visualizador'] },
   { to: '/configuracoes', icon: Settings, label: 'Configurações', roles: ['admin'] },
 ];
 
