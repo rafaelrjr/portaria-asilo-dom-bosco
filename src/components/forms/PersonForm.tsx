@@ -96,28 +96,30 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
     try {
       const newPerson: Person = {
         id: person?.id || generateId(),
-        nome: data.nome,
+        nome: data.nome.trim(),
         cpf: data.cpf,
-        rg: data.rg || '',
-        telefone: data.telefone || undefined,
+        rg: data.rg?.trim() || '',
+        telefone: data.telefone?.trim() || undefined,
         tipo: data.tipo as VisitorType,
-        parentesco: data.parentesco || undefined,
-        idosoVinculado: data.idosoVinculado || undefined,
-        observacoes: data.observacoes || undefined,
+        parentesco: data.parentesco?.trim() || undefined,
+        idosoVinculado: (data.idosoVinculado && data.idosoVinculado.trim() !== '') ? data.idosoVinculado : undefined,
+        observacoes: data.observacoes?.trim() || undefined,
         foto: foto,
         horarioEspecial: data.horarioEspecial,
-        horarioEspecialInicio: data.horarioEspecial ? data.horarioEspecialInicio : undefined,
-        horarioEspecialFim: data.horarioEspecial ? data.horarioEspecialFim : undefined,
+        horarioEspecialInicio: data.horarioEspecial ? (data.horarioEspecialInicio || undefined) : undefined,
+        horarioEspecialFim: data.horarioEspecial ? (data.horarioEspecialFim || undefined) : undefined,
         diasPermitidos: data.horarioEspecial ? diasPermitidos : undefined,
         createdAt: person?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+      console.log('Saving person:', JSON.stringify(newPerson, null, 2));
       await savePerson(newPerson);
       toast.success(isEditing ? 'Cadastro atualizado!' : 'Pessoa cadastrada com sucesso!');
       if (onSuccess) { onSuccess(newPerson); } else { reset(); setFoto(undefined); setDiasPermitidos([]); }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar visitante:', error);
-      toast.error('Erro ao salvar visitante. Tente novamente.');
+      console.error('Detalhes:', error?.message, error?.details, error?.hint, error?.code);
+      toast.error(`Erro ao salvar: ${error?.message || 'Tente novamente.'}`);
     }
   }
 
