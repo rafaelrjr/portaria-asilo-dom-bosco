@@ -885,34 +885,44 @@ export async function importResidentsFromCSV(csvData: string): Promise<{ success
     const lines = csvData.split('\n').filter(l => l.trim());
     if (lines.length < 2) return { success: 0, errors: 0 };
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    // Support both ; and , as delimiter — detect from header
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
     let success = 0;
     let errors = 0;
 
     for (let i = 1; i < lines.length; i++) {
       try {
-        const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const values = lines[i].split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
         const record: Record<string, string> = {};
         headers.forEach((h, idx) => {
           record[h] = values[idx] || '';
         });
 
-        const nome = record.nome || record.name || record['nome completo'];
-        if (nome) {
-          const resident: Resident = {
-            id: crypto.randomUUID(),
-            nome,
-            quarto: record.quarto || record.room || '',
-            observacoes: record.observacoes || record.obs || '',
-            ativo: true,
-            autorizadoSaidaTemporaria: false,
-            createdAt: new Date().toISOString(),
-          };
-          await saveResident(resident);
-          success++;
-        } else {
-          errors++;
-        }
+        const nome = record.nome || record['nome completo'] || record.name || '';
+        if (!nome) { errors++; continue; }
+
+        const statusVal = (record.status || record.ativo || '').toLowerCase();
+        const ativo = statusVal === 'inativo' || statusVal === 'false' || statusVal === 'não' || statusVal === 'nao' ? false : true;
+
+        const cpf = record.cpf || '';
+        const dataNascimento = record['data de nascimento'] || record['data_nascimento'] || record['data nascimento'] || record.nascimento || '';
+        const quarto = record.quarto || record.room || '';
+        const observacoes = record.observacoes || record['observações'] || record.obs || '';
+
+        const resident: Resident = {
+          id: crypto.randomUUID(),
+          nome,
+          quarto,
+          cpf: cpf || undefined,
+          dataNascimento: dataNascimento || undefined,
+          observacoes: observacoes || undefined,
+          ativo,
+          autorizadoSaidaTemporaria: false,
+          createdAt: new Date().toISOString(),
+        };
+        await saveResident(resident);
+        success++;
       } catch {
         errors++;
       }
