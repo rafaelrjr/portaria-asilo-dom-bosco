@@ -777,6 +777,7 @@ export async function getResidentExits(): Promise<ResidentExit[]> {
     dataSaida: row.data_saida,
     horaSaida: row.hora_saida,
     horaRetornoPrevista: row.hora_retorno_prevista,
+    dataRetornoReal: (row as any).data_retorno_real,
     horaRetornoReal: row.hora_retorno_real,
     motivoSaida: row.motivo_saida,
     acompanhante: row.acompanhante,
@@ -816,6 +817,7 @@ export async function getActiveResidentExits(): Promise<ResidentExit[]> {
     dataSaida: row.data_saida,
     horaSaida: row.hora_saida,
     horaRetornoPrevista: row.hora_retorno_prevista,
+    dataRetornoReal: (row as any).data_retorno_real,
     horaRetornoReal: row.hora_retorno_real,
     motivoSaida: row.motivo_saida,
     acompanhante: row.acompanhante,
@@ -941,6 +943,7 @@ export async function getPendingResidentExits(): Promise<ResidentExit[]> {
     dataSaida: row.data_saida,
     horaSaida: row.hora_saida,
     horaRetornoPrevista: row.hora_retorno_prevista,
+    dataRetornoReal: (row as any).data_retorno_real,
     horaRetornoReal: row.hora_retorno_real,
     motivoSaida: row.motivo_saida,
     acompanhante: row.acompanhante,
@@ -972,11 +975,12 @@ export async function saveResidentExit(exit: ResidentExit): Promise<void> {
     data_saida: exit.dataSaida,
     hora_saida: exit.horaSaida,
     hora_retorno_prevista: exit.horaRetornoPrevista,
+    data_retorno_real: exit.dataRetornoReal || null,
     hora_retorno_real: exit.horaRetornoReal,
     motivo_saida: exit.motivoSaida,
     acompanhante: exit.acompanhante,
     observacoes: exit.observacoes,
-  });
+  } as any);
   if (error) throw error;
   
   await createAuditLog({

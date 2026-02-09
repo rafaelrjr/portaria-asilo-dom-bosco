@@ -90,9 +90,12 @@ export function ResidentExitForm({ onSuccess }: ResidentExitFormProps) {
 
   async function onSubmitReturn(data: ReturnFormData) {
     if (!selectedReturn) return;
-    const updatedExit: ResidentExit = { ...selectedReturn, horaRetornoReal: data.horaRetornoReal };
+    const today = getCurrentDate();
+    const updatedExit: ResidentExit = { ...selectedReturn, dataRetornoReal: today, horaRetornoReal: data.horaRetornoReal };
     await saveResidentExit(updatedExit);
-    const isLate = data.horaRetornoReal > selectedReturn.horaRetornoPrevista;
+    const isLateByDate = today > selectedReturn.dataSaida;
+    const isLateByTime = today === selectedReturn.dataSaida && data.horaRetornoReal > selectedReturn.horaRetornoPrevista;
+    const isLate = isLateByDate || isLateByTime;
     toast.success(isLate ? `Retorno registrado (com atraso)` : 'Retorno registrado no horário!');
     setSelectedReturn(null);
     resetReturn({ horaRetornoReal: getCurrentTime() });
@@ -100,7 +103,11 @@ export function ResidentExitForm({ onSuccess }: ResidentExitFormProps) {
     onSuccess?.();
   }
 
-  function isLate(exit: ResidentExit): boolean { return getCurrentTime() > exit.horaRetornoPrevista; }
+  function isLate(exit: ResidentExit): boolean {
+    const today = getCurrentDate();
+    if (exit.dataSaida < today) return true; // Past day = always late
+    return getCurrentTime() > exit.horaRetornoPrevista;
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

@@ -203,6 +203,7 @@ export type Database = {
         Row: {
           acompanhante: string | null
           created_at: string | null
+          data_retorno_real: string | null
           data_saida: string
           hora_retorno_prevista: string
           hora_retorno_real: string | null
@@ -215,6 +216,7 @@ export type Database = {
         Insert: {
           acompanhante?: string | null
           created_at?: string | null
+          data_retorno_real?: string | null
           data_saida: string
           hora_retorno_prevista: string
           hora_retorno_real?: string | null
@@ -227,6 +229,7 @@ export type Database = {
         Update: {
           acompanhante?: string | null
           created_at?: string | null
+          data_retorno_real?: string | null
           data_saida?: string
           hora_retorno_prevista?: string
           hora_retorno_real?: string | null

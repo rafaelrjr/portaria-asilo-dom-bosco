@@ -131,6 +131,7 @@ export interface ResidentExit {
   dataSaida: string;
   horaSaida: string;
   horaRetornoPrevista: string;
+  dataRetornoReal?: string;
   horaRetornoReal?: string;
   motivoSaida: string;
   acompanhante?: string;
