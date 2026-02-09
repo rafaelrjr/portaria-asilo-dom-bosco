@@ -106,7 +106,7 @@ export default function Auth() {
             </div>
           )}
           <div>
-            <CardTitle className="text-2xl">{settings?.nome || 'Sistema de Portaria'}</CardTitle>
+            <CardTitle className="text-2xl">{settings?.nome ? `Portaria - ${settings.nome}` : 'Portaria - Asilo Dom Bosco'}</CardTitle>
             <CardDescription>Acesse sua conta para continuar</CardDescription>
           </div>
         </CardHeader>
