@@ -906,8 +906,18 @@ export async function importResidentsFromCSV(csvData: string): Promise<{ success
         const ativo = statusVal === 'inativo' || statusVal === 'false' || statusVal === 'não' || statusVal === 'nao' ? false : true;
 
         const cpf = record.cpf || '';
-        const dataNascimento = record['data de nascimento'] || record['data_nascimento'] || record['data nascimento'] || record.nascimento || '';
-        const quarto = record.quarto || record.room || '';
+        const rawDate = record['data de nascimento'] || record['data_nascimento'] || record['data nascimento'] || record.nascimento || '';
+        // Convert DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
+        let dataNascimento = '';
+        if (rawDate) {
+          const match = rawDate.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+          if (match) {
+            dataNascimento = `${match[3]}-${match[2]}-${match[1]}`;
+          } else {
+            dataNascimento = rawDate; // already in acceptable format
+          }
+        }
+        const quarto = record.quarto || record.room || '-';
         const observacoes = record.observacoes || record['observações'] || record.obs || '';
 
         const resident: Resident = {
