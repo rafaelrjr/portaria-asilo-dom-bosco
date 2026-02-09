@@ -80,27 +80,32 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   function handleDayToggle(day: DayOfWeek) { setDiasPermitidos(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]); }
 
   async function onSubmit(data: PersonFormData) {
-    const newPerson: Person = {
-      id: person?.id || generateId(),
-      nome: data.nome,
-      cpf: data.cpf,
-      rg: data.rg || '',
-      telefone: data.telefone,
-      tipo: data.tipo as VisitorType,
-      parentesco: data.parentesco,
-      idosoVinculado: data.idosoVinculado,
-      observacoes: data.observacoes,
-      foto: foto,
-      horarioEspecial: data.horarioEspecial,
-      horarioEspecialInicio: data.horarioEspecial ? data.horarioEspecialInicio : undefined,
-      horarioEspecialFim: data.horarioEspecial ? data.horarioEspecialFim : undefined,
-      diasPermitidos: data.horarioEspecial ? diasPermitidos : undefined,
-      createdAt: person?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    await savePerson(newPerson);
-    toast.success(isEditing ? 'Cadastro atualizado!' : 'Pessoa cadastrada com sucesso!');
-    if (onSuccess) { onSuccess(newPerson); } else { reset(); setFoto(undefined); setDiasPermitidos([]); }
+    try {
+      const newPerson: Person = {
+        id: person?.id || generateId(),
+        nome: data.nome,
+        cpf: data.cpf,
+        rg: data.rg || '',
+        telefone: data.telefone,
+        tipo: data.tipo as VisitorType,
+        parentesco: data.parentesco,
+        idosoVinculado: data.idosoVinculado,
+        observacoes: data.observacoes,
+        foto: foto,
+        horarioEspecial: data.horarioEspecial,
+        horarioEspecialInicio: data.horarioEspecial ? data.horarioEspecialInicio : undefined,
+        horarioEspecialFim: data.horarioEspecial ? data.horarioEspecialFim : undefined,
+        diasPermitidos: data.horarioEspecial ? diasPermitidos : undefined,
+        createdAt: person?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await savePerson(newPerson);
+      toast.success(isEditing ? 'Cadastro atualizado!' : 'Pessoa cadastrada com sucesso!');
+      if (onSuccess) { onSuccess(newPerson); } else { reset(); setFoto(undefined); setDiasPermitidos([]); }
+    } catch (error) {
+      console.error('Erro ao salvar visitante:', error);
+      toast.error('Erro ao salvar visitante. Tente novamente.');
+    }
   }
 
   return (

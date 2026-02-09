@@ -47,7 +47,13 @@ export default function ResidentExits() {
                       <TableCell>{exit.horaRetornoPrevista}</TableCell>
                       <TableCell>{exit.horaRetornoReal || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{exit.motivoSaida}</TableCell>
-                      <TableCell>{exit.horaRetornoReal ? <Badge variant={exit.horaRetornoReal > exit.horaRetornoPrevista ? 'destructive' : 'secondary'}>{exit.horaRetornoReal > exit.horaRetornoPrevista ? 'Atrasado' : 'No horário'}</Badge> : <Badge variant="default" className="animate-pulse">Fora</Badge>}</TableCell>
+                      <TableCell>{exit.horaRetornoReal ? (() => {
+                        // Compare date+time: if return is on a later date, it's always late
+                        const saidaDate = exit.dataSaida;
+                        const retornoRealDate = exit.createdAt ? exit.createdAt.split('T')[0] : saidaDate;
+                        const isLate = retornoRealDate > saidaDate || (retornoRealDate === saidaDate && exit.horaRetornoReal > exit.horaRetornoPrevista);
+                        return <Badge variant={isLate ? 'destructive' : 'secondary'}>{isLate ? 'Atrasado' : 'No horário'}</Badge>;
+                      })() : <Badge variant="default" className="animate-pulse">Fora</Badge>}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
