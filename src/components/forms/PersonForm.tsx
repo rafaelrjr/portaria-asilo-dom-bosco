@@ -69,6 +69,13 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   const horarioEspecial = watch('horarioEspecial');
 
   useEffect(() => {
+    if (tipoVisitante !== 'familiar') {
+      setValue('idosoVinculado', '');
+      setValue('parentesco', '');
+    }
+  }, [tipoVisitante, setValue]);
+
+  useEffect(() => {
     async function load() {
       const res = await getResidents();
       const filtered = res.filter(r => r.ativo);
