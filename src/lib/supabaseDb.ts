@@ -251,17 +251,21 @@ export async function searchPersons(query: string, limit = 10): Promise<Person[]
   const q = query.trim();
   if (!q) return [];
 
+  // Sanitize input: escape special PostgREST filter characters to prevent filter injection
+  const sanitized = q.replace(/[%_\\(),.*]/g, (char) => `\\${char}`);
+
   // Help CPF searching when user types only digits
   const digitsOnly = q.replace(/\D/g, '');
   const cpfFormatted = digitsOnly.length >= 11 ? formatCPF(digitsOnly) : undefined;
 
   const orParts = [
-    `nome.ilike.%${q}%`,
-    `cpf.ilike.%${q}%`,
-    `rg.ilike.%${q}%`,
+    `nome.ilike.%${sanitized}%`,
+    `cpf.ilike.%${sanitized}%`,
+    `rg.ilike.%${sanitized}%`,
   ];
   if (cpfFormatted && cpfFormatted !== q) {
-    orParts.push(`cpf.ilike.%${cpfFormatted}%`);
+    const sanitizedCpf = cpfFormatted.replace(/[%_\\(),.*]/g, (char) => `\\${char}`);
+    orParts.push(`cpf.ilike.%${sanitizedCpf}%`);
   }
 
   const { data, error } = await supabase
