@@ -20,15 +20,15 @@ import { WebcamCapture } from '@/components/camera/WebcamCapture';
 const personSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   cpf: z.string().min(14, 'CPF inválido'),
-  rg: z.string().optional(),
-  telefone: z.string().min(14, 'Telefone inválido'),
+  rg: z.string().optional().or(z.literal('')),
+  telefone: z.string().min(14, 'Telefone inválido').or(z.literal('')).optional(),
   tipo: z.string(),
-  parentesco: z.string().optional(),
-  idosoVinculado: z.string().optional(),
-  observacoes: z.string().optional(),
+  parentesco: z.string().optional().or(z.literal('')),
+  idosoVinculado: z.string().optional().or(z.literal('')),
+  observacoes: z.string().optional().or(z.literal('')),
   horarioEspecial: z.boolean().optional(),
-  horarioEspecialInicio: z.string().optional(),
-  horarioEspecialFim: z.string().optional(),
+  horarioEspecialInicio: z.string().optional().or(z.literal('')),
+  horarioEspecialFim: z.string().optional().or(z.literal('')),
 });
 
 type PersonFormData = z.infer<typeof personSchema>;
@@ -47,9 +47,22 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = !!person;
 
+  const defaultVals = person 
+    ? { 
+        ...person, 
+        rg: person.rg || '', 
+        telefone: person.telefone || '', 
+        parentesco: person.parentesco || '', 
+        idosoVinculado: person.idosoVinculado || '', 
+        observacoes: person.observacoes || '',
+        horarioEspecialInicio: person.horarioEspecialInicio || '',
+        horarioEspecialFim: person.horarioEspecialFim || '',
+      } 
+    : { tipo: 'familiar', horarioEspecial: false };
+
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<PersonFormData>({
     resolver: zodResolver(personSchema),
-    defaultValues: person || { tipo: 'familiar', horarioEspecial: false },
+    defaultValues: defaultVals,
   });
 
   const tipoVisitante = watch('tipo');
@@ -112,7 +125,14 @@ export function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
     <Card className="animate-slide-up">
       <CardHeader><CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" />{isEditing ? 'Editar Cadastro' : 'Novo Cadastro de Visitante'}</CardTitle></CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, (validationErrors) => {
+          const firstError = Object.values(validationErrors)[0];
+          if (firstError?.message) {
+            toast.error(`Campo inválido: ${firstError.message}`);
+          } else {
+            toast.error('Preencha todos os campos obrigatórios.');
+          }
+        })} className="space-y-6">
           <div className="flex flex-col items-center gap-4 pb-4 border-b">
             <div className="relative">
               {foto ? (
