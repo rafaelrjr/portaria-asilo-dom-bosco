@@ -151,16 +151,16 @@ export async function saveResident(resident: Resident): Promise<void> {
   const dbData = {
     id: resident.id,
     nome: resident.nome,
-    cpf: resident.cpf,
-    data_nascimento: resident.dataNascimento,
-    quarto: resident.quarto,
-    foto: resident.foto,
-    observacoes: resident.observacoes,
+    cpf: resident.cpf || null,
+    data_nascimento: resident.dataNascimento || null,
+    quarto: resident.quarto || '',
+    foto: resident.foto || null,
+    observacoes: resident.observacoes || null,
     ativo: resident.ativo,
     autorizado_saida_temporaria: resident.autorizadoSaidaTemporaria,
-    dias_saida_permitidos: resident.diasSaidaPermitidos,
-    horario_saida_permitido: resident.horarioSaidaPermitido,
-    horario_retorno_permitido: resident.horarioRetornoPermitido,
+    dias_saida_permitidos: resident.diasSaidaPermitidos || null,
+    horario_saida_permitido: resident.horarioSaidaPermitido || null,
+    horario_retorno_permitido: resident.horarioRetornoPermitido || null,
   };
   
   const { error } = await supabase.from('residents').upsert(dbData);
