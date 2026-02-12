@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Person, Visit, VisitPurpose, Resident, InstitutionSettings } from '@/types';
-import { searchPersons, getResidents, saveVisit, getActiveVisits, getInstitutionSettings } from '@/lib/supabaseDb';
+import { Person, Visit, VisitPurpose, Resident, InstitutionSettings, RestrictedPerson } from '@/types';
+import { searchPersons, getResidents, saveVisit, getActiveVisits, getInstitutionSettings, checkRestriction } from '@/lib/supabaseDb';
 import { getCurrentDate, getCurrentTime, generateId } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { DoorOpen, Search, User, Printer, AlertTriangle } from 'lucide-react';
+import { DoorOpen, Search, User, Printer, AlertTriangle, ShieldBan } from 'lucide-react';
 import { PersonForm } from './PersonForm';
 import { printVisitorLabelDirect } from '@/components/visitors/VisitorLabel';
 
@@ -38,6 +38,9 @@ export function EntryForm() {
   const [showJustificationDialog, setShowJustificationDialog] = useState(false);
   const [justification, setJustification] = useState('');
   const [pendingSubmitData, setPendingSubmitData] = useState<EntryFormData | null>(null);
+  const [restrictionAlert, setRestrictionAlert] = useState<RestrictedPerson | null>(null);
+  const [showRestrictionDialog, setShowRestrictionDialog] = useState(false);
+  const [restrictionJustification, setRestrictionJustification] = useState('');
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
@@ -70,12 +73,23 @@ export function EntryForm() {
     }
   }
 
-  function handleSelectPerson(person: Person) {
+  async function handleSelectPerson(person: Person) {
     setSelectedPerson(person);
     setSearchQuery('');
     setSearchResults([]);
     if (person.idosoVinculado) {
       setValue('idosoId', person.idosoVinculado);
+    }
+
+    // Verificar restrição
+    try {
+      const restriction = await checkRestriction(person.cpf, person.nome);
+      if (restriction) {
+        setRestrictionAlert(restriction);
+        setShowRestrictionDialog(true);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar restrição:', error);
     }
   }
 
@@ -126,15 +140,55 @@ export function EntryForm() {
       return;
     }
 
+    // Se há restrição ativa e não foi justificada ainda, bloquear
+    if (restrictionAlert && !restrictionJustification.trim()) {
+      setShowRestrictionDialog(true);
+      setPendingSubmitData(data);
+      return;
+    }
+
+    // Prepend restriction justification to observacoes if present
+    let finalData = { ...data };
+    if (restrictionAlert && restrictionJustification.trim()) {
+      const prefix = `[RESTRIÇÃO IGNORADA] Motivo da restrição: ${restrictionAlert.motivo}. Justificativa: ${restrictionJustification}`;
+      finalData.observacoes = prefix + (data.observacoes ? `\n${data.observacoes}` : '');
+    }
+
     // Skip justification for purposes that don't require it
     const exemptPurposes = ['prestacao_servico', 'psc', 'voluntariado', 'reuniao'];
-    if (!exemptPurposes.includes(data.proposito) && isOutsideVisitingHours(data.idosoId)) {
-      setPendingSubmitData(data);
+    if (!exemptPurposes.includes(finalData.proposito) && isOutsideVisitingHours(finalData.idosoId)) {
+      setPendingSubmitData(finalData);
       setShowJustificationDialog(true);
       return;
     }
 
-    await processSubmit(data);
+    await processSubmit(finalData);
+  }
+
+  async function handleRestrictionProceed() {
+    if (!restrictionJustification.trim()) {
+      toast.error('Justificativa é obrigatória para prosseguir com pessoa restrita');
+      return;
+    }
+    setShowRestrictionDialog(false);
+    // Re-trigger submit with the justification now set
+    if (pendingSubmitData) {
+      const prefix = `[RESTRIÇÃO IGNORADA] Motivo da restrição: ${restrictionAlert?.motivo}. Justificativa: ${restrictionJustification}`;
+      const finalData = {
+        ...pendingSubmitData,
+        observacoes: prefix + (pendingSubmitData.observacoes ? `\n${pendingSubmitData.observacoes}` : ''),
+      };
+
+      const exemptPurposes = ['prestacao_servico', 'psc', 'voluntariado', 'reuniao'];
+      if (!exemptPurposes.includes(finalData.proposito) && isOutsideVisitingHours(finalData.idosoId)) {
+        setPendingSubmitData(finalData);
+        setShowJustificationDialog(true);
+        return;
+      }
+
+      await processSubmit(finalData);
+      setPendingSubmitData(null);
+    }
   }
 
   async function handleJustificationSubmit() {
@@ -200,6 +254,8 @@ export function EntryForm() {
       
       // Reset form
       setSelectedPerson(null);
+      setRestrictionAlert(null);
+      setRestrictionJustification('');
       reset();
     } catch (error) {
       console.error('Erro ao registrar entrada:', error);
@@ -272,8 +328,23 @@ export function EntryForm() {
                       <p className="text-sm text-muted-foreground">CPF: {selectedPerson.cpf} | Tel: {selectedPerson.telefone}</p>
                     </div>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setSelectedPerson(null)}>Alterar</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setSelectedPerson(null); setRestrictionAlert(null); setRestrictionJustification(''); }}>Alterar</Button>
                 </div>
+                {restrictionAlert && (
+                  <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 flex items-start gap-3">
+                    <ShieldBan className="h-6 w-6 text-destructive shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-destructive text-lg">⚠ PESSOA COM RESTRIÇÃO DE ACESSO</p>
+                      <p className="text-sm text-destructive/90 mt-1"><strong>Motivo:</strong> {restrictionAlert.motivo}</p>
+                      {restrictionAlert.resident && (
+                        <p className="text-sm text-destructive/90"><strong>Idoso vinculado:</strong> {restrictionAlert.resident.nome}</p>
+                      )}
+                      {restrictionJustification && (
+                        <p className="text-sm text-muted-foreground mt-2 italic">Justificativa informada: {restrictionJustification}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2"><Label>Data</Label><Input value={getCurrentDate()} disabled /></div>
                   <div className="space-y-2"><Label>Hora de Entrada</Label><Input value={getCurrentTime()} disabled /></div>
@@ -377,6 +448,54 @@ export function EntryForm() {
             </Button>
             <Button onClick={handleJustificationSubmit}>
               Confirmar Entrada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restriction alert dialog */}
+      <Dialog open={showRestrictionDialog} onOpenChange={setShowRestrictionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldBan className="h-5 w-5" />
+              ATENÇÃO: Pessoa com Restrição de Acesso
+            </DialogTitle>
+            <DialogDescription>
+              Esta pessoa possui restrição de acesso à instituição. Para prosseguir, é obrigatório informar uma justificativa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4">
+              <p className="font-semibold text-destructive">Motivo da restrição:</p>
+              <p className="text-sm mt-1">{restrictionAlert?.motivo}</p>
+              {restrictionAlert?.resident && (
+                <p className="text-sm mt-1"><strong>Idoso vinculado:</strong> {restrictionAlert.resident.nome}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restriction-justification">Justificativa para prosseguir *</Label>
+              <Textarea
+                id="restriction-justification"
+                placeholder="Informe o motivo pelo qual esta entrada será permitida..."
+                value={restrictionJustification}
+                onChange={(e) => setRestrictionJustification(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowRestrictionDialog(false);
+              setSelectedPerson(null);
+              setRestrictionAlert(null);
+              setRestrictionJustification('');
+              setPendingSubmitData(null);
+            }}>
+              Cancelar Entrada
+            </Button>
+            <Button variant="destructive" onClick={handleRestrictionProceed}>
+              Prosseguir com Justificativa
             </Button>
           </DialogFooter>
         </DialogContent>

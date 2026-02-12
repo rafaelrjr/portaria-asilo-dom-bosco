@@ -172,6 +172,20 @@ export const VISITING_HOURS: VisitingHours = {
   fim: '16:30',
 };
 
+export interface RestrictedPerson {
+  id: string;
+  nome: string;
+  cpf?: string;
+  dataNascimento?: string;
+  residentId?: string;
+  resident?: Resident;
+  motivo: string;
+  ativo: boolean;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuditLog {
   id: string;
   userId: string | null;

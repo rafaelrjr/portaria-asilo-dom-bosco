@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, WeekendExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek, AuditLog } from '@/types';
+import { Person, Resident, Visit, Vehicle, VehicleTrip, ResidentExit, WeekendExit, InstitutionSettings, UserRole, VisitorType, VisitPurpose, DayOfWeek, AuditLog, RestrictedPerson } from '@/types';
 import { formatCPF } from '@/lib/utils';
 
 // ==================== AUDIT LOGS ====================
@@ -1249,5 +1249,129 @@ export async function getDashboardStats() {
     visitasSemana: weekVisits.count || 0,
     visitasMes: monthVisits.count || 0,
     date: today,
+  };
+}
+
+// ==================== RESTRICTED PERSONS ====================
+export async function getRestrictedPersons(): Promise<RestrictedPerson[]> {
+  const { data, error } = await supabase
+    .from('restricted_persons')
+    .select('*, resident:residents(id, nome, quarto)')
+    .order('nome');
+
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    nome: row.nome,
+    cpf: row.cpf,
+    dataNascimento: row.data_nascimento,
+    residentId: row.resident_id,
+    resident: row.resident ? {
+      id: row.resident.id,
+      nome: row.resident.nome,
+      quarto: row.resident.quarto,
+      ativo: true,
+      autorizadoSaidaTemporaria: false,
+      createdAt: '',
+    } : undefined,
+    motivo: row.motivo,
+    ativo: row.ativo ?? true,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function saveRestrictedPerson(person: Omit<RestrictedPerson, 'createdAt' | 'updatedAt' | 'resident'>): Promise<void> {
+  const { data: existing } = await supabase
+    .from('restricted_persons')
+    .select('*')
+    .eq('id', person.id)
+    .maybeSingle();
+
+  const isUpdate = !!existing;
+
+  const dbData: any = {
+    id: person.id,
+    nome: person.nome,
+    cpf: person.cpf || null,
+    data_nascimento: person.dataNascimento || null,
+    resident_id: person.residentId || null,
+    motivo: person.motivo,
+    ativo: person.ativo,
+  };
+
+  if (!isUpdate) {
+    const { data: { user } } = await supabase.auth.getUser();
+    dbData.created_by = user?.id || null;
+  }
+
+  const { error } = await supabase.from('restricted_persons').upsert(dbData);
+  if (error) throw error;
+
+  await createAuditLog({
+    action: isUpdate ? 'UPDATE' : 'INSERT',
+    tableName: 'restricted_persons',
+    recordId: person.id,
+    oldData: existing ? { nome: existing.nome, cpf: existing.cpf, motivo: existing.motivo } : null,
+    newData: { nome: person.nome, cpf: person.cpf, motivo: person.motivo },
+  });
+}
+
+export async function deleteRestrictedPerson(id: string): Promise<void> {
+  const { data: existing } = await supabase
+    .from('restricted_persons')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  const { error } = await supabase.from('restricted_persons').delete().eq('id', id);
+  if (error) throw error;
+
+  await createAuditLog({
+    action: 'DELETE',
+    tableName: 'restricted_persons',
+    recordId: id,
+    oldData: existing ? { nome: existing.nome, cpf: existing.cpf, motivo: existing.motivo } : null,
+  });
+}
+
+export async function checkRestriction(cpf?: string, nome?: string): Promise<RestrictedPerson | null> {
+  if (!cpf && !nome) return null;
+
+  let query = supabase
+    .from('restricted_persons')
+    .select('*, resident:residents(id, nome, quarto)')
+    .eq('ativo', true);
+
+  if (cpf) {
+    query = query.eq('cpf', cpf);
+  } else if (nome) {
+    query = query.ilike('nome', nome);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    nome: data.nome,
+    cpf: data.cpf,
+    dataNascimento: data.data_nascimento,
+    residentId: data.resident_id,
+    resident: (data as any).resident ? {
+      id: (data as any).resident.id,
+      nome: (data as any).resident.nome,
+      quarto: (data as any).resident.quarto,
+      ativo: true,
+      autorizadoSaidaTemporaria: false,
+      createdAt: '',
+    } : undefined,
+    motivo: data.motivo,
+    ativo: data.ativo ?? true,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
   };
 }

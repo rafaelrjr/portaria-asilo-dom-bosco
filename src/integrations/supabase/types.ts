@@ -297,6 +297,53 @@ export type Database = {
         }
         Relationships: []
       }
+      restricted_persons: {
+        Row: {
+          ativo: boolean | null
+          cpf: string | null
+          created_at: string | null
+          created_by: string | null
+          data_nascimento: string | null
+          id: string
+          motivo: string
+          nome: string
+          resident_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cpf?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_nascimento?: string | null
+          id?: string
+          motivo: string
+          nome: string
+          resident_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cpf?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_nascimento?: string | null
+          id?: string
+          motivo?: string
+          nome?: string
+          resident_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restricted_persons_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

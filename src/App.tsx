@@ -18,6 +18,7 @@ import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import AuditLogs from "./pages/AuditLogs";
+import Restrictions from "./pages/Restrictions";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ function AppRoutes() {
       <Route path="/relatorios" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/auditoria" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+      <Route path="/restricoes" element={<ProtectedRoute><Restrictions /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
