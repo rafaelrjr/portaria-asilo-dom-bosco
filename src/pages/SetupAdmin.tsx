@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { saveUser, simpleHash } from '@/lib/db';
+import { saveUser, hashPassword } from '@/lib/db';
 import { User } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,10 +43,12 @@ export default function SetupAdmin() {
   async function onSubmit(data: SetupFormData) {
     setIsSubmitting(true);
     try {
+      const { hash, salt } = await hashPassword(data.password);
       const adminUser: User = {
         id: crypto.randomUUID(),
         username: data.username.toLowerCase(),
-        password: simpleHash(data.password),
+        password: hash,
+        salt: salt,
         nome: data.nome,
         email: data.email,
         role: 'admin',
