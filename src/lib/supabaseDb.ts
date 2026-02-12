@@ -1339,39 +1339,54 @@ export async function deleteRestrictedPerson(id: string): Promise<void> {
 export async function checkRestriction(cpf?: string, nome?: string): Promise<RestrictedPerson | null> {
   if (!cpf && !nome) return null;
 
-  let query = supabase
-    .from('restricted_persons')
-    .select('*, resident:residents(id, nome, quarto)')
-    .eq('ativo', true);
-
+  // Build OR filters: match by cleaned CPF or by exact name (case-insensitive)
+  const orFilters: string[] = [];
   if (cpf) {
-    query = query.eq('cpf', cpf);
-  } else if (nome) {
-    query = query.ilike('nome', nome);
+    const cleanCpf = cpf.replace(/\D/g, '');
+    // Match both formatted and unformatted CPF
+    orFilters.push(`cpf.eq.${cpf}`);
+    if (cleanCpf !== cpf) {
+      orFilters.push(`cpf.eq.${cleanCpf}`);
+    }
+    // Also try formatted version
+    const formatted = formatCPF(cleanCpf);
+    if (formatted !== cpf && formatted !== cleanCpf) {
+      orFilters.push(`cpf.eq.${formatted}`);
+    }
+  }
+  if (nome) {
+    orFilters.push(`nome.ilike.${nome}`);
   }
 
-  const { data, error } = await query.maybeSingle();
-  if (error && error.code !== 'PGRST116') throw error;
-  if (!data) return null;
+  const { data, error } = await supabase
+    .from('restricted_persons')
+    .select('*, resident:residents(id, nome, quarto)')
+    .eq('ativo', true)
+    .or(orFilters.join(','))
+    .limit(1);
 
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+
+  const row = data[0];
   return {
-    id: data.id,
-    nome: data.nome,
-    cpf: data.cpf,
-    dataNascimento: data.data_nascimento,
-    residentId: data.resident_id,
-    resident: (data as any).resident ? {
-      id: (data as any).resident.id,
-      nome: (data as any).resident.nome,
-      quarto: (data as any).resident.quarto,
+    id: row.id,
+    nome: row.nome,
+    cpf: row.cpf,
+    dataNascimento: row.data_nascimento,
+    residentId: row.resident_id,
+    resident: (row as any).resident ? {
+      id: (row as any).resident.id,
+      nome: (row as any).resident.nome,
+      quarto: (row as any).resident.quarto,
       ativo: true,
       autorizadoSaidaTemporaria: false,
       createdAt: '',
     } : undefined,
-    motivo: data.motivo,
-    ativo: data.ativo ?? true,
-    createdBy: data.created_by,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    motivo: row.motivo,
+    ativo: row.ativo ?? true,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
